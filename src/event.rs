@@ -11,31 +11,37 @@ pub enum MpiOp {
     Init,
     Finalize {
         current_rank: i32,
+        comm: MpiComm,
     },
     Isend {
         current_rank: i32,
         partner_rank: i32,
+        comm: MpiComm,
         tag: i32,
         req: MpiReq,
     },
     Irecv {
         current_rank: i32,
         partner_rank: i32,
+        comm: MpiComm,
         tag: i32,
         req: MpiReq,
     },
     Send {
         current_rank: i32,
         partner_rank: i32,
+        comm: MpiComm,
         tag: i32,
     },
     Recv {
         current_rank: i32,
         partner_rank: i32,
+        comm: MpiComm,
         tag: i32,
     },
     Wait {
         current_rank: i32,
+        comm: MpiComm,
         req: MpiReq,
     },
 }
@@ -44,19 +50,13 @@ pub enum MpiOp {
 #[repr(C)]
 pub struct Event {
     op: MpiOp,
-    comm: Option<MpiComm>,
     before: Time,
     after: Time,
 }
 
 impl Event {
-    pub fn new(op: MpiOp, comm: Option<MpiComm>, before: Time, after: Time) -> Self {
-        Event {
-            op,
-            comm,
-            before,
-            after,
-        }
+    pub fn new(op: MpiOp, before: Time, after: Time) -> Self {
+        Event { op, before, after }
     }
 }
 
@@ -70,9 +70,9 @@ mod tests {
             MpiOp::Send {
                 current_rank: 1,
                 partner_rank: 2,
+                comm: WORLD,
                 tag: 0,
             },
-            Some(WORLD),
             132,
             243,
         );
@@ -82,18 +82,18 @@ mod tests {
             MpiOp::Send {
                 current_rank: 1,
                 partner_rank: 2,
+                comm: WORLD,
                 tag: 0
             }
         );
-        assert_eq!(e.comm, Some(WORLD));
         assert_eq!(e.before, 132);
         assert_eq!(e.after, 243);
     }
 
     #[test]
     fn serialize() {
-        let e = Event::new(MpiOp::Init, None, 132, 243);
-        let json = String::from("{\"op\":\"Init\",\"comm\":null,\"before\":132,\"after\":243}");
+        let e = Event::new(MpiOp::Init, 132, 243);
+        let json = String::from("{\"op\":\"Init\",\"before\":132,\"after\":243}");
 
         let serialized = serde_json::to_string(&e).expect("Failed to serialize");
         assert_eq!(json, serialized);
@@ -105,10 +105,10 @@ mod tests {
             MpiOp::Isend {
                 current_rank: 0,
                 partner_rank: 1,
+                comm: WORLD,
                 req: 0,
                 tag: 0,
             },
-            Some(WORLD),
             132,
             243,
         );
