@@ -17,44 +17,48 @@ impl Init {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Finalize {
-    current_rank: i32,
     cycles: u64,
     time: f64,
+    current_rank: i32,
 }
 
 impl Finalize {
-    pub fn new(current_rank: i32, cycles: u64, time: f64) -> Self {
-        Finalize { current_rank, cycles, time }
+    pub fn new(cycles: u64, time: f64, current_rank: i32) -> Self {
+        Finalize {
+            cycles,
+            time,
+            current_rank,
+        }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Blocking {
-    current_rank: i32,
-    partner_rank: i32,
-    comm: MpiComm,
-    tag: i32,
     cycles_lo: u64,
     cycles_hi: u64,
+    comm: MpiComm,
+    current_rank: i32,
+    partner_rank: i32,
+    tag: i32,
 }
 
 impl Blocking {
     pub fn new(
+        cycles_lo: u64,
+        cycles_hi: u64,
+        comm: MpiComm,
         current_rank: i32,
         partner_rank: i32,
-        comm: MpiComm,
         tag: i32,
-        cycles_lo: u64,
-        cycles_hi: u64
     ) -> Self {
         Blocking {
-            current_rank,
-            partner_rank,
-            comm,
-            tag,
             cycles_lo,
             cycles_hi,
+            comm,
+            current_rank,
+            partner_rank,
+            tag,
         }
     }
 }
@@ -62,33 +66,33 @@ impl Blocking {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C)]
 pub struct NonBlocking {
-    current_rank: i32,
-    partner_rank: i32,
-    comm: MpiComm,
-    tag: i32,
-    req: MpiReq,
     cycles_lo: u64,
     cycles_hi: u64,
+    comm: MpiComm,
+    req: MpiReq,
+    current_rank: i32,
+    partner_rank: i32,
+    tag: i32,
 }
 
 impl NonBlocking {
     pub fn new(
+        cycles_lo: u64,
+        cycles_hi: u64,
+        comm: MpiComm,
+        req: MpiReq,
         current_rank: i32,
         partner_rank: i32,
-        comm: MpiComm,
         tag: i32,
-        req: MpiReq,
-        cycles_lo: u64,
-        cycles_hi: u64
     ) -> Self {
         NonBlocking {
-            current_rank,
-            partner_rank,
-            comm,
-            tag,
-            req,
             cycles_lo,
             cycles_hi,
+            comm,
+            req,
+            current_rank,
+            partner_rank,
+            tag,
         }
     }
 }
@@ -96,27 +100,27 @@ impl NonBlocking {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Wait {
-    current_rank: i32,
-    comm: MpiComm,
-    req: MpiReq,
     cycles_lo: u64,
     cycles_hi: u64,
+    comm: MpiComm,
+    req: MpiReq,
+    current_rank: i32,
 }
 
 impl Wait {
     pub fn new(
-        current_rank: i32,
+        cycles_lo: u64,
+        cycles_hi: u64,
         comm: MpiComm,
         req: MpiReq,
-        cycles_lo: u64,
-        cycles_hi: u64
+        current_rank: i32,
     ) -> Self {
-        Self {
-            current_rank,
-            comm,
-            req,
+        Wait {
             cycles_lo,
             cycles_hi,
+            comm,
+            req,
+            current_rank,
         }
     }
 }
@@ -134,20 +138,30 @@ pub enum Event {
 
 #[cfg(test)]
 mod tests {
-    use crate::WORLD;
     use super::*;
+    use crate::WORLD;
+    use std::fs::File;
+    use std::io::Write;
 
     #[test]
     fn builds() {
-        let e = Event::Send(Blocking::new(1, 2, WORLD, 0, 132, 243));
+        let e = Event::Send(Blocking::new(132, 243, WORLD, 1, 2, 0));
 
-        if let Event::Send(Blocking { current_rank, partner_rank, comm, tag, cycles_lo, cycles_hi }) = e {
-            assert_eq!(current_rank, 1);
-            assert_eq!(partner_rank, 2);
-            assert_eq!(comm, WORLD);
-            assert_eq!(tag, 0);
+        if let Event::Send(Blocking {
+            cycles_lo,
+            cycles_hi,
+            comm,
+            tag,
+            current_rank,
+            partner_rank,
+        }) = e
+        {
             assert_eq!(cycles_lo, 132);
             assert_eq!(cycles_hi, 243);
+            assert_eq!(comm, WORLD);
+            assert_eq!(tag, 0);
+            assert_eq!(current_rank, 1);
+            assert_eq!(partner_rank, 2);
         } else {
             unreachable!();
         }
@@ -163,9 +177,34 @@ mod tests {
 
     #[test]
     fn deserialize() {
-        let e = Event::Isend(NonBlocking::new(0, 1, WORLD, 0, 0, 132, 243));
+        let e = Event::Isend(NonBlocking::new(132, 243, WORLD, 0, 0, 1, 0));
         let serialized = serde_json::to_string_pretty(&e).expect("Failed to serialize");
         let deserialized: Event = serde_json::from_str(&serialized).expect("Failed to deserialize");
         assert_eq!(e, deserialized);
     }
-}
+
+    #[test]
+    fn multiple_events() {
+        let mut t = Vec::new();
+        let e = Event::Irecv(NonBlocking::new(1, 0, WORLD, 0, 0, 69, 420));
+
+        t.push(e.clone());
+        assert_eq!(t[0], e);
+    }
+
+    #[test]
+    fn serialize_to_file() {
+        let mut t = Vec::new();
+        t.push(Event::Init(Init::new(34, 0.78)));
+        t.push(Event::Isend(NonBlocking::new(9, 19, WORLD, 0, 0, 1, 0)));
+        t.push(Event::Wait(Wait::new(20, 27, WORLD, 0, 0)));
+        t.push(Event::Irecv(NonBlocking::new(69, 420, WORLD, 1, 0, 1, 1)));
+        t.push(Event::Wait(Wait::new(555, 567, WORLD, 1, 0)));
+        t.push(Event::Finalize(Finalize::new(978, 1024f64, 0)));
+
+        let serialized = serde_json::to_string_pretty(&t).expect("Failed to serialize");
+        let mut file = File::create("./target/test.json").unwrap();
+        write!(file, "{}", serialized).unwrap();
+
+        assert_eq!(std::path::Path::new("./target/test.json").exists(), true);
+    }}
