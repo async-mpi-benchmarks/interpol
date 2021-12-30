@@ -37,6 +37,7 @@ impl Finalize {
 pub struct Blocking {
     cycles_lo: u64,
     cycles_hi: u64,
+    bytes: usize,
     comm: MpiComm,
     current_rank: i32,
     partner_rank: i32,
@@ -47,6 +48,7 @@ impl Blocking {
     pub fn new(
         cycles_lo: u64,
         cycles_hi: u64,
+        bytes: usize,
         comm: MpiComm,
         current_rank: i32,
         partner_rank: i32,
@@ -55,6 +57,7 @@ impl Blocking {
         Blocking {
             cycles_lo,
             cycles_hi,
+            bytes,
             comm,
             current_rank,
             partner_rank,
@@ -68,6 +71,7 @@ impl Blocking {
 pub struct NonBlocking {
     cycles_lo: u64,
     cycles_hi: u64,
+    bytes: usize,
     comm: MpiComm,
     req: MpiReq,
     current_rank: i32,
@@ -79,6 +83,7 @@ impl NonBlocking {
     pub fn new(
         cycles_lo: u64,
         cycles_hi: u64,
+        bytes: usize,
         comm: MpiComm,
         req: MpiReq,
         current_rank: i32,
@@ -88,6 +93,7 @@ impl NonBlocking {
         NonBlocking {
             cycles_lo,
             cycles_hi,
+            bytes,
             comm,
             req,
             current_rank,
@@ -145,11 +151,12 @@ mod tests {
 
     #[test]
     fn builds() {
-        let e = Event::Send(Blocking::new(132, 243, WORLD, 1, 2, 0));
+        let e = Event::Send(Blocking::new(132, 243, 216, WORLD, 1, 2, 0));
 
         if let Event::Send(Blocking {
             cycles_lo,
             cycles_hi,
+            bytes,
             comm,
             tag,
             current_rank,
@@ -158,6 +165,7 @@ mod tests {
         {
             assert_eq!(cycles_lo, 132);
             assert_eq!(cycles_hi, 243);
+            assert_eq!(bytes, 216);
             assert_eq!(comm, WORLD);
             assert_eq!(tag, 0);
             assert_eq!(current_rank, 1);
@@ -177,7 +185,7 @@ mod tests {
 
     #[test]
     fn deserialize() {
-        let e = Event::Isend(NonBlocking::new(132, 243, WORLD, 0, 0, 1, 0));
+        let e = Event::Isend(NonBlocking::new(132, 243, 477, WORLD, 0, 0, 1, 0));
         let serialized = serde_json::to_string_pretty(&e).expect("Failed to serialize");
         let deserialized: Event = serde_json::from_str(&serialized).expect("Failed to deserialize");
         assert_eq!(e, deserialized);
@@ -186,25 +194,41 @@ mod tests {
     #[test]
     fn multiple_events() {
         let mut t = Vec::new();
-        let e = Event::Irecv(NonBlocking::new(1, 0, WORLD, 0, 0, 69, 420));
+        let e = Event::Irecv(NonBlocking::new(1, 0, 8, WORLD, 0, 0, 69, 420));
 
         t.push(e.clone());
         assert_eq!(t[0], e);
     }
 
     #[test]
-    fn serialize_to_file() {
+    fn serialize_async() {
         let mut t = Vec::new();
         t.push(Event::Init(Init::new(34, 0.78)));
-        t.push(Event::Isend(NonBlocking::new(9, 19, WORLD, 0, 0, 1, 0)));
+        t.push(Event::Isend(NonBlocking::new(9, 19, 64, WORLD, 0, 0, 1, 0)));
         t.push(Event::Wait(Wait::new(20, 27, WORLD, 0, 0)));
-        t.push(Event::Irecv(NonBlocking::new(69, 420, WORLD, 1, 0, 1, 1)));
+        t.push(Event::Irecv(NonBlocking::new(69, 420, 64, WORLD, 1, 0, 1, 1)));
         t.push(Event::Wait(Wait::new(555, 567, WORLD, 1, 0)));
         t.push(Event::Finalize(Finalize::new(978, 1024f64, 0)));
 
         let serialized = serde_json::to_string_pretty(&t).expect("Failed to serialize");
-        let mut file = File::create("./target/test.json").unwrap();
+        let mut file = File::create("./target/test_async.json").unwrap();
         write!(file, "{}", serialized).unwrap();
 
-        assert_eq!(std::path::Path::new("./target/test.json").exists(), true);
-    }}
+        assert_eq!(std::path::Path::new("./target/test_async.json").exists(), true);
+    }
+
+    #[test]
+    fn serialize_sync() {
+        let mut t = Vec::new();
+        t.push(Event::Init(Init::new(34, 0.78)));
+        t.push(Event::Send(Blocking::new(9, 19, 246, WORLD, 0, 1, 0)));
+        t.push(Event::Recv(Blocking::new(69, 420, 246, WORLD, 0, 1, 1)));
+        t.push(Event::Finalize(Finalize::new(978, 1024f64, 0)));
+
+        let serialized = serde_json::to_string_pretty(&t).expect("Failed to serialize");
+        let mut file = File::create("./target/test_sync.json").unwrap();
+        write!(file, "{}", serialized).unwrap();
+
+        assert_eq!(std::path::Path::new("./target/test_sync.json").exists(), true);
+    }
+}
