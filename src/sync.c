@@ -24,7 +24,7 @@ uint64_t rdtsc()
         "rdtsc;\n"
         : "=r" (lo), "=r" (hi)
         :
-        : "rax", "rdx");
+        : "eax", "edx");
 
     return ((hi << 32) | lo);
 }
