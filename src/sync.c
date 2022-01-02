@@ -21,7 +21,7 @@ uint64_t rdtsc()
     uint64_t lo, hi;
 
     __asm__ volatile(
-        "rdtsc;\n"
+        "rdtsc"
         : "=r" (lo), "=r" (hi)
         :
         : "eax", "edx");
