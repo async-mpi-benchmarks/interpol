@@ -1,8 +1,11 @@
+extern crate serde;
+extern crate serde_json;
+
 use crate::{MpiComm, MpiReq};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C, packed)]
 pub struct Init {
     cycles: u64,
     time: f64,
@@ -14,8 +17,8 @@ impl Init {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C, packed)]
 pub struct Finalize {
     cycles: u64,
     time: f64,
@@ -32,8 +35,8 @@ impl Finalize {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C, packed)]
 pub struct Blocking {
     cycles_lo: u64,
     cycles_hi: u64,
@@ -66,8 +69,8 @@ impl Blocking {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C, packed)]
 pub struct NonBlocking {
     cycles_lo: u64,
     cycles_hi: u64,
@@ -103,12 +106,11 @@ impl NonBlocking {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C, packed)]
 pub struct Wait {
     cycles_lo: u64,
     cycles_hi: u64,
-    comm: MpiComm,
     req: MpiReq,
     current_rank: i32,
 }
@@ -117,29 +119,27 @@ impl Wait {
     pub fn new(
         cycles_lo: u64,
         cycles_hi: u64,
-        comm: MpiComm,
         req: MpiReq,
         current_rank: i32,
     ) -> Self {
         Wait {
             cycles_lo,
             cycles_hi,
-            comm,
             req,
             current_rank,
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Event {
     Init(Init),
-    Finalize(Finalize),
     Send(Blocking),
     Recv(Blocking),
     Isend(NonBlocking),
     Irecv(NonBlocking),
     Wait(Wait),
+    Finalize(Finalize),
 }
 
 #[cfg(test)]
@@ -205,16 +205,21 @@ mod tests {
         let mut t = Vec::new();
         t.push(Event::Init(Init::new(34, 0.78)));
         t.push(Event::Isend(NonBlocking::new(9, 19, 64, WORLD, 0, 0, 1, 0)));
-        t.push(Event::Wait(Wait::new(20, 27, WORLD, 0, 0)));
-        t.push(Event::Irecv(NonBlocking::new(69, 420, 64, WORLD, 1, 0, 1, 1)));
-        t.push(Event::Wait(Wait::new(555, 567, WORLD, 1, 0)));
+        t.push(Event::Wait(Wait::new(20, 27, 0, 0)));
+        t.push(Event::Irecv(NonBlocking::new(
+            69, 420, 64, WORLD, 1, 0, 1, 1,
+        )));
+        t.push(Event::Wait(Wait::new(555, 567, 1, 0)));
         t.push(Event::Finalize(Finalize::new(978, 1024f64, 0)));
 
         let serialized = serde_json::to_string_pretty(&t).expect("Failed to serialize");
         let mut file = File::create("./target/test_async.json").unwrap();
         write!(file, "{}", serialized).unwrap();
 
-        assert_eq!(std::path::Path::new("./target/test_async.json").exists(), true);
+        assert_eq!(
+            std::path::Path::new("./target/test_async.json").exists(),
+            true
+        );
     }
 
     #[test]
@@ -229,6 +234,9 @@ mod tests {
         let mut file = File::create("./target/test_sync.json").unwrap();
         write!(file, "{}", serialized).unwrap();
 
-        assert_eq!(std::path::Path::new("./target/test_sync.json").exists(), true);
+        assert_eq!(
+            std::path::Path::new("./target/test_sync.json").exists(),
+            true
+        );
     }
 }

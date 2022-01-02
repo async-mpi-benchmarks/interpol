@@ -1,3 +1,7 @@
+extern crate lazy_static;
+extern crate serde;
+extern crate serde_json;
+
 use crate::event::*;
 use crate::{MpiComm, MpiReq};
 use lazy_static::lazy_static;
@@ -121,7 +125,6 @@ extern "C" fn register_irecv(
 extern "C" fn register_wait(
     cycles_lo: u64,
     cycles_hi: u64,
-    comm: MpiComm,
     req: MpiReq,
     current_rank: i32,
 ) {
@@ -131,7 +134,6 @@ extern "C" fn register_wait(
         .push(Event::Wait(Wait::new(
             cycles_lo,
             cycles_hi,
-            comm,
             req,
             current_rank,
         )));
@@ -144,7 +146,9 @@ extern "C" fn register_finalize(cycles: u64, time: f64, rank: i32) {
         .expect("Failed to take the lock")
         .push(Event::Finalize(Finalize::new(cycles, time, rank)));
 
-    let serialized = serde_json::to_string_pretty(&TRACES).expect("Failed to serialize");
+    let guard = TRACES.lock().unwrap();
+
+    let serialized = serde_json::to_string_pretty(&*guard).expect("Failed to serialize");
     let filename = format!("rank{}_traces.json", rank.to_string());
     let mut file = File::create(filename).expect("Failed to create serialization file");
     write!(file, "{}", serialized).expect("Failed to write to serialization file");
