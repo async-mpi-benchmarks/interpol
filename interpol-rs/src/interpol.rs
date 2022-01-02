@@ -14,7 +14,7 @@ lazy_static! {
 }
 
 #[no_mangle]
-extern "C" fn register_init(cycles: u64, time: f64) {
+pub extern "C" fn register_init(cycles: u64, time: f64) {
     TRACES
         .lock()
         .expect("Failed to take the lock")
@@ -22,7 +22,7 @@ extern "C" fn register_init(cycles: u64, time: f64) {
 }
 
 #[no_mangle]
-extern "C" fn register_send(
+pub extern "C" fn register_send(
     cycles_lo: u64,
     cycles_hi: u64,
     bytes: usize,
@@ -46,7 +46,7 @@ extern "C" fn register_send(
 }
 
 #[no_mangle]
-extern "C" fn register_recv(
+pub extern "C" fn register_recv(
     cycles_lo: u64,
     cycles_hi: u64,
     bytes: usize,
@@ -70,7 +70,7 @@ extern "C" fn register_recv(
 }
 
 #[no_mangle]
-extern "C" fn register_isend(
+pub extern "C" fn register_isend(
     cycles_lo: u64,
     cycles_hi: u64,
     bytes: usize,
@@ -96,7 +96,7 @@ extern "C" fn register_isend(
 }
 
 #[no_mangle]
-extern "C" fn register_irecv(
+pub extern "C" fn register_irecv(
     cycles_lo: u64,
     cycles_hi: u64,
     bytes: usize,
@@ -122,7 +122,7 @@ extern "C" fn register_irecv(
 }
 
 #[no_mangle]
-extern "C" fn register_wait(
+pub extern "C" fn register_wait(
     cycles_lo: u64,
     cycles_hi: u64,
     req: MpiReq,
@@ -140,7 +140,7 @@ extern "C" fn register_wait(
 }
 
 #[no_mangle]
-extern "C" fn register_finalize(cycles: u64, time: f64, rank: i32) {
+pub extern "C" fn register_finalize(cycles: u64, time: f64, rank: i32) {
     TRACES
         .lock()
         .expect("Failed to take the lock")
