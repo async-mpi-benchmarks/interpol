@@ -78,6 +78,7 @@ int MPI_Wait(MPI_Request *request, MPI_Status *status)
 {
     //récupération du rank du processus
     int current_rank = MPI_Comm_rank(comm, rank);
+    //récupération de la valeur de la requete
     int r = request;
 
     uint64_t cycles_lo = rdtsc();
@@ -90,3 +91,24 @@ int MPI_Wait(MPI_Request *request, MPI_Status *status)
     return ret;
 }
 
+int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
+              int tag, MPI_Comm comm, MPI_Request *request)
+{
+    //récupération de nombre de bytes reçu
+    int bytes = MPI_Type_size(datatype, &count);
+    //récupération du rank du processus
+    int current_rank = MPI_Comm_rank(comm, rank);
+    //récuperation de la valeur du comm
+    int c = comm;
+    //récupération de la valeur de la requete
+    int r = request;
+
+    uint64_t cycles_lo = rdtsc();
+    int ret = PMPI_Isend(buf, count, datatype, dest, tag, comm, request);
+    uint64_t cycles_hi = rdtsc();
+
+    //appel de la fonction rust
+    register_isend(cycles_lo, cycles_hi, (size_t)bytes, c, r, rank, dest, tag);
+
+    return ret;
+}
