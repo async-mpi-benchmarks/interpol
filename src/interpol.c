@@ -51,3 +51,24 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
 
     return ret;
 }
+
+
+int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+             MPI_Comm comm, MPI_Status *status)
+{
+    //récupération de nombre de bytes reçu
+    int bytes = MPI_Type_size(datatype, &count);
+    //récupération du rank du processus
+    int current_rank = MPI_Comm_rank(comm, rank);
+
+    //rdtsc et appel de la fonction MPI
+    uint64_t cycles_lo = rdtsc();
+    int ret = PMPI_Recv(buf, count, datatype, source, tag, comm, status);
+    uint64_t cycles_hi = rdtsc();
+
+    //appel de la fonction rust
+    register_recv(cycles_lo, cycles_hi, (size_t)bytes, comm, current_rank, source, tag);
+
+    return ret;
+}
+
