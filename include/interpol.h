@@ -56,4 +56,44 @@ void register_wait(uint64_t cycles_lo,
                    MpiReq req,
                    int32_t current_rank);
 
-void register_finalize(uint64_t cycles, double time, int32_t rank);
+void register_finalize(uint64_t cycles,
+                       double time,
+                       int32_t rank);
+
+int MPI_Init(int *argc,
+             char ***argv);
+
+int MPI_Send(const void *buf,
+             int count,
+             MPI_Datatype datatype,
+             int dest,
+             int tag,
+             MPI_Comm comm);
+
+int MPI_Recv(void *buf,
+             int count,
+             MPI_Datatype datatype,
+             int source, int tag,
+             MPI_Comm comm,
+             MPI_Status *status);
+
+int MPI_Wait(MPI_Request *request,
+             MPI_Status *status);
+
+int MPI_Isend(const void *buf,
+              int count,
+              MPI_Datatype datatype,
+              int dest,
+              int tag,
+              MPI_Comm comm,
+              MPI_Request *request);
+
+int MPI_Irecv(void *buf,
+              int count,
+              MPI_Datatype datatype,
+              int source,
+              int tag,
+              MPI_Comm comm,
+              MPI_Request * request);
+
+int MPI_Finalize();
