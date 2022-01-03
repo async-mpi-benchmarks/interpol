@@ -15,8 +15,14 @@ typedef int32_t MpiReq;
 
 #define WORLD 0
 
+/**
+ * Registers an `MPI_Init` call into the static `TRACES` vector.
+ */
 void register_init(uint64_t cycles, double time);
 
+/**
+ * Registers an `MPI_Send` call into the static `TRACES` vector.
+ */
 void register_send(uint64_t cycles_lo,
                    uint64_t cycles_hi,
                    size_t bytes,
@@ -25,6 +31,9 @@ void register_send(uint64_t cycles_lo,
                    int32_t partner_rank,
                    int32_t tag);
 
+/**
+ * Registers an `MPI_Recv` call into the static `TRACES` vector.
+ */
 void register_recv(uint64_t cycles_lo,
                    uint64_t cycles_hi,
                    size_t bytes,
@@ -33,6 +42,9 @@ void register_recv(uint64_t cycles_lo,
                    int32_t partner_rank,
                    int32_t tag);
 
+/**
+ * Registers an `MPI_Isend` call into the static `TRACES` vector.
+ */
 void register_isend(uint64_t cycles_lo,
                     uint64_t cycles_hi,
                     size_t bytes,
@@ -42,6 +54,9 @@ void register_isend(uint64_t cycles_lo,
                     int32_t partner_rank,
                     int32_t tag);
 
+/**
+ * Registers an `MPI_Irecv` call into the static `TRACES` vector.
+ */
 void register_irecv(uint64_t cycles_lo,
                     uint64_t cycles_hi,
                     size_t bytes,
@@ -51,49 +66,19 @@ void register_irecv(uint64_t cycles_lo,
                     int32_t partner_rank,
                     int32_t tag);
 
+/**
+ * Registers an `MPI_Wait` call into the static `TRACES` vector.
+ */
 void register_wait(uint64_t cycles_lo,
                    uint64_t cycles_hi,
                    MpiReq req,
                    int32_t current_rank);
 
+/**
+ * Registers an `MPI_Finalize` call into the static `TRACES` vector.
+ *
+ * As this should be the final registered event, serialize the contents of the `TRACES` vector.
+ */
 void register_finalize(uint64_t cycles,
                        double time,
                        int32_t rank);
-
-int MPI_Init(int *argc,
-             char ***argv);
-
-int MPI_Send(const void *buf,
-             int count,
-             MPI_Datatype datatype,
-             int dest,
-             int tag,
-             MPI_Comm comm);
-
-int MPI_Recv(void *buf,
-             int count,
-             MPI_Datatype datatype,
-             int source, int tag,
-             MPI_Comm comm,
-             MPI_Status *status);
-
-int MPI_Wait(MPI_Request *request,
-             MPI_Status *status);
-
-int MPI_Isend(const void *buf,
-              int count,
-              MPI_Datatype datatype,
-              int dest,
-              int tag,
-              MPI_Comm comm,
-              MPI_Request *request);
-
-int MPI_Irecv(void *buf,
-              int count,
-              MPI_Datatype datatype,
-              int source,
-              int tag,
-              MPI_Comm comm,
-              MPI_Request * request);
-
-int MPI_Finalize();
