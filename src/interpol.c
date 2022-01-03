@@ -138,6 +138,7 @@ int MPI_Finalize()
 {
     //appel de la fonction MPI
     int ret = PMPI_Finalize();
+    double time = 0.0;
     //vérification qu'un appel a été fait entre le init et le finalize
     if(rank != -1)
     {
