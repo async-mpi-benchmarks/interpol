@@ -134,3 +134,24 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source,
     return ret;
 }
 
+int MPI_Finalize()
+{
+    //appel de la fonction MPI
+    int ret = PMPI_Finalize();
+    //vérification qu'un appel a été fait entre le init et le finalize
+    if(rank != -1)
+    {
+        uint64_t cycles = rdtsc();
+
+        void register_finalize(cycles, time, rank);
+
+        return ret;
+    }
+
+    else
+    {
+        printf("aucun appel entre le init et le finalize");
+        return ret;
+    }
+    return ret;
+}
