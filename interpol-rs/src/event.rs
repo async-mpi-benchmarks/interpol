@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 /// Stores the current time in milliseconds and the current number of CPU cycles.
 /// The latter is get from the C `sync_rdtscp` function which uses the `rdtscp` and
 /// `cpuid` instructions.
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C, packed)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
 pub struct Init {
     cycles: u64,
     time: f64,
@@ -29,8 +29,8 @@ impl Init {
 /// in milliseconds and the current number of CPU cycles.
 /// The latter is get from the C `sync_rdtscp` function which uses the `rdtscp` and
 /// `cpuid` instructions.
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C, packed)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
 pub struct Finalize {
     cycles: u64,
     time: f64,
@@ -56,8 +56,8 @@ impl Finalize {
 /// Stores the number of cycles before and after calling the MPI function, the number of bytes
 /// exchanged, the MPI communicator, the rank of the process making the call, the rank of the
 /// partner process and the tag for the exchange.
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C, packed)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
 pub struct Blocking {
     cycles_lo: u64,
     cycles_hi: u64,
@@ -98,8 +98,8 @@ impl Blocking {
 /// Stores the number of cycles before and after calling the MPI function, the number of bytes
 /// exchanged, the MPI communicator and MPI request qualifying the call, the rank of the
 /// process making the call, the rank of the partner process and the tag for the exchange.
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C, packed)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
 pub struct NonBlocking {
     cycles_lo: u64,
     cycles_hi: u64,
@@ -140,8 +140,8 @@ impl NonBlocking {
 ///
 /// Stores the number of cycles before and after calling the MPI function, the MPI request
 /// qualifying the call and the rank of the process making the call.
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C, packed)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
 pub struct Wait {
     cycles_lo: u64,
     cycles_hi: u64,
@@ -169,7 +169,7 @@ impl Wait {
 /// Information on a MPI event.
 ///
 /// This enum is used to store data on an MPI call, primarily in a `Vec`.
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Event {
     Init(Init),
     Send(Blocking),
