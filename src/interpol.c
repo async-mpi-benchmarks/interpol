@@ -112,3 +112,25 @@ int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
 
     return ret;
 }
+
+int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source,
+              int tag, MPI_Comm comm, MPI_Request * request)
+{
+    //récupération de nombre de bytes reçu
+    int bytes = MPI_Type_size(datatype, &count);
+    //récupération du rank du processus
+    int current_rank = MPI_Comm_rank(comm, rank);
+    //récuperation de la valeur du comm
+    int c = comm;
+    //récupération de la valeur de la requete
+    int r = request;
+
+    uint64_t cycles_lo = rdtsc();
+    int ret = PMPI_Irecv(buf, count, datatype, source, tag, comm, request);
+    uint64_t cycles_hi = rdtsc();
+
+    register_irecv(cycles_lo, cycles_hi, (size_t)bytes, c, r, rank, source, tag);
+
+    return ret;
+}
+
