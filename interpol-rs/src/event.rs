@@ -4,6 +4,11 @@ extern crate serde_json;
 use crate::{MpiComm, MpiReq};
 use serde::{Deserialize, Serialize};
 
+/// A structure that stores information about `MPI_Init` calls.
+///
+/// Stores the current time in milliseconds and the current number of CPU cycles.
+/// The latter is get from the C `sync_rdtscp` function which uses the `rdtscp` and
+/// `cpuid` instructions.
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C, packed)]
 pub struct Init {
@@ -12,11 +17,18 @@ pub struct Init {
 }
 
 impl Init {
+    /// Creates a new `Init` structure from a number of cycles and a time in milliseconds.
     pub fn new(cycles: u64, time: f64) -> Self {
         Init { cycles, time }
     }
 }
 
+/// A structure that stores information about `MPI_Finalize` calls.
+///
+/// Stores the rank of the process calling `MPI_Finalize` as well as the current time
+/// in milliseconds and the current number of CPU cycles.
+/// The latter is get from the C `sync_rdtscp` function which uses the `rdtscp` and
+/// `cpuid` instructions.
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C, packed)]
 pub struct Finalize {
@@ -26,6 +38,8 @@ pub struct Finalize {
 }
 
 impl Finalize {
+    /// Creates a new `Finalize` structure from a rank, a number of cycles and a time in
+    /// milliseconds.
     pub fn new(cycles: u64, time: f64, current_rank: i32) -> Self {
         Finalize {
             cycles,
@@ -35,6 +49,13 @@ impl Finalize {
     }
 }
 
+/// A structure that stores information about synchronous MPI calls.
+///
+/// Currently only allows to store data from `MPI_Send` and `MPI_Recv` calls.
+/// 
+/// Stores the number of cycles before and after calling the MPI function, the number of bytes
+/// exchanged, the MPI communicator, the rank of the process making the call, the rank of the
+/// partner process and the tag for the exchange.
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C, packed)]
 pub struct Blocking {
@@ -48,6 +69,7 @@ pub struct Blocking {
 }
 
 impl Blocking {
+    /// Creates a new `Blocking` structure from the specified parameters.
     pub fn new(
         cycles_lo: u64,
         cycles_hi: u64,
@@ -69,6 +91,13 @@ impl Blocking {
     }
 }
 
+/// A structure that stores information about asynchronous MPI calls.
+///
+/// Currently only allows to store data from `MPI_Isend` and `MPI_Irecv` calls.
+/// 
+/// Stores the number of cycles before and after calling the MPI function, the number of bytes
+/// exchanged, the MPI communicator and MPI request qualifying the call, the rank of the
+/// process making the call, the rank of the partner process and the tag for the exchange.
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C, packed)]
 pub struct NonBlocking {
@@ -83,6 +112,7 @@ pub struct NonBlocking {
 }
 
 impl NonBlocking {
+    /// Creates a new `NonBlocking` structure from the specified parameters.
     pub fn new(
         cycles_lo: u64,
         cycles_hi: u64,
@@ -106,6 +136,10 @@ impl NonBlocking {
     }
 }
 
+/// A structure that stores information about `MPI_Wait` calls.
+///
+/// Stores the number of cycles before and after calling the MPI function, the MPI request
+/// qualifying the call and the rank of the process making the call.
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C, packed)]
 pub struct Wait {
@@ -116,6 +150,7 @@ pub struct Wait {
 }
 
 impl Wait {
+    /// Creates a new `Wait` structure from the specified parameters.
     pub fn new(
         cycles_lo: u64,
         cycles_hi: u64,
@@ -131,6 +166,9 @@ impl Wait {
     }
 }
 
+/// Information on a MPI event.
+///
+/// This enum is used to store data on an MPI call, primarily in a `Vec`.
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Event {
     Init(Init),
@@ -203,7 +241,7 @@ mod tests {
     #[test]
     fn serialize_async() {
         let mut t = Vec::new();
-        t.push(Event::Init(Init::new(34, 0.78)));
+        t.push(Event::Init(Init::new(2, 0.78)));
         t.push(Event::Isend(NonBlocking::new(9, 19, 64, WORLD, 0, 0, 1, 0)));
         t.push(Event::Wait(Wait::new(20, 27, 0, 0)));
         t.push(Event::Irecv(NonBlocking::new(
@@ -225,9 +263,9 @@ mod tests {
     #[test]
     fn serialize_sync() {
         let mut t = Vec::new();
-        t.push(Event::Init(Init::new(34, 0.78)));
+        t.push(Event::Init(Init::new(2, 0.78)));
         t.push(Event::Send(Blocking::new(9, 19, 246, WORLD, 0, 1, 0)));
-        t.push(Event::Recv(Blocking::new(69, 420, 246, WORLD, 0, 1, 1)));
+        t.push(Event::Recv(Blocking::new(69, 420, 246, WORLD, 1, 0, 1)));
         t.push(Event::Finalize(Finalize::new(978, 1024f64, 0)));
 
         let serialized = serde_json::to_string_pretty(&t).expect("Failed to serialize");
