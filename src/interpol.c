@@ -60,6 +60,8 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
     int bytes = MPI_Type_size(datatype, &count);
     //récupération du rank du processus
     int current_rank = MPI_Comm_rank(comm, rank);
+    //récuperation de la valeur du comm
+    int c = comm;
 
     //rdtsc et appel de la fonction MPI
     uint64_t cycles_lo = rdtsc();
@@ -67,7 +69,23 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
     uint64_t cycles_hi = rdtsc();
 
     //appel de la fonction rust
-    register_recv(cycles_lo, cycles_hi, (size_t)bytes, comm, current_rank, source, tag);
+    register_recv(cycles_lo, cycles_hi, (size_t)bytes, c, rank, source, tag);
+
+    return ret;
+}
+
+int MPI_Wait(MPI_Request *request, MPI_Status *status)
+{
+    //récupération du rank du processus
+    int current_rank = MPI_Comm_rank(comm, rank);
+    int r = request;
+
+    uint64_t cycles_lo = rdtsc();
+    int ret = PMPI_Wait(request, status);
+    uint64_t cycles_hi = rdtsc();
+
+    //appel de la fonction rust
+    register_wait(cycles_lo, cycles_hi, r, current_rank);
 
     return ret;
 }
