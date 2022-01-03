@@ -8,7 +8,7 @@ uint64_t sync_rdtscp()
     __asm__ volatile(
         "rdtscp;\n"
         "cpuid;\n"
-        : "=r" (lo), "=r" (hi)
+        : "=a" (lo), "=d" (hi)
         :
         : "rax", "rbx", "rcx", "rdx");
 
@@ -22,7 +22,7 @@ uint64_t rdtsc()
 
     __asm__ volatile(
         "rdtsc"
-        : "=r" (lo), "=r" (hi)
+        : "=a" (lo), "=d" (hi)
         :
         : "eax", "edx");
 
