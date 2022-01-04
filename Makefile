@@ -8,12 +8,12 @@ INCLUDE=include
 RS_SRC=interpol-rs/src
 RS_LIB=interpol-rs/target/release
 
-build: interpol-rs libinterpol.so
+build: libinterpol.so
 
-libinterpol.so: $(SRC)/*.c $(INCLUDE)/*.h
+libinterpol.so: $(RS_LIB)/libinterpol_rs.so $(SRC)/*.c $(INCLUDE)/*.h
 	$(CC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $< -o $@ -linterpol_rs
 
-interpol-rs: $(RS_SRC)/*.rs
+$(RS_LIB)/libinterpol_rs.so: $(RS_SRC)/*.rs
 	@cd interpol-rs/ && cargo build --release
 
 test: $(RS_SRC)/*.rs
@@ -24,3 +24,4 @@ doc: $(RS_SRC)/*.rs
 
 clean:
 	@cd interpol-rs/ && cargo clean
+	@rm -f libinterpol.so
