@@ -33,7 +33,7 @@ lazy_static! {
     /// a large number of threads. Therefore, the contention on the `Mutex` should not
     /// impact the performance of the application and the blocking of threads will be kept
     /// to a minimum.
-    pub static ref TRACES: Mutex<Vec<Event>> = Mutex::new(Vec::new());
+    static ref TRACES: Mutex<Vec<Event>> = Mutex::new(Vec::new());
 }
 
 /// Registers an `MPI_Init` call into the static `TRACES` vector.
