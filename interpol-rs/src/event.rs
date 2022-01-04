@@ -52,7 +52,7 @@ impl Finalize {
 /// A structure that stores information about synchronous MPI calls.
 ///
 /// Currently only allows to store data from `MPI_Send` and `MPI_Recv` calls.
-/// 
+///
 /// Stores the number of cycles before and after calling the MPI function, the number of bytes
 /// exchanged, the MPI communicator, the rank of the process making the call, the rank of the
 /// partner process and the tag for the exchange.
@@ -94,7 +94,7 @@ impl Blocking {
 /// A structure that stores information about asynchronous MPI calls.
 ///
 /// Currently only allows to store data from `MPI_Isend` and `MPI_Irecv` calls.
-/// 
+///
 /// Stores the number of cycles before and after calling the MPI function, the number of bytes
 /// exchanged, the MPI communicator and MPI request qualifying the call, the rank of the
 /// process making the call, the rank of the partner process and the tag for the exchange.
@@ -151,12 +151,7 @@ pub struct Wait {
 
 impl Wait {
     /// Creates a new `Wait` structure from the specified parameters.
-    pub fn new(
-        cycles_lo: u64,
-        cycles_hi: u64,
-        req: MpiReq,
-        current_rank: i32,
-    ) -> Self {
+    pub fn new(cycles_lo: u64, cycles_hi: u64, req: MpiReq, current_rank: i32) -> Self {
         Wait {
             cycles_lo,
             cycles_hi,
