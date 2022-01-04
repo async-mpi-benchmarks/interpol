@@ -12,12 +12,16 @@ int *rank; //pointeur permettant de récupérer le rank du processus
 
 int MPI_Init(int *argc, char ***argv)
 {
+    //récupération du temps (on prendra la valeur en microsecondes)
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
   	uint64_t cycles = sync_rdtscp();
     double time = 0.0; // gettime
     int ret = PMPI_Init(argc, argv);
 
     // appel fonction en rust
-    register_init(cycles, time);
+    register_init(cycles, time.tv_usec);
 
     *rank = -1;
 
@@ -129,6 +133,10 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source,
 
 int MPI_Finalize()
 {
+    //récupération du temps (on prendra la valeur en microsecondes)
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
     //appel de la fonction MPI
     int ret = PMPI_Finalize();
     double time = 0.0;
@@ -137,7 +145,7 @@ int MPI_Finalize()
     {
         uint64_t cycles = rdtsc();
 
-        void register_finalize(cycles, time, rank);
+        void register_finalize(cycles, time.tv_usec, rank);
 
         return ret;
     }
