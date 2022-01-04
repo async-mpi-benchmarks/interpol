@@ -10,7 +10,30 @@ use std::io::Write;
 use std::sync::Mutex;
 
 lazy_static! {
-    static ref TRACES: Mutex<Vec<Event>> = Mutex::new(vec![]);
+    /// A vector that keeps track of interposed MPI functions called by a process.
+    ///
+    /// The `lazy_static` macro creates static objects that are only initialized when
+    /// needed at runtime. In our case, this implementation is similar to a singleton.
+    /// It removes the need to pass a constant pointer on the `Vec` of traces back to
+    /// the C part of the interposition library, therefore avoiding the use of `unsafe`
+    /// code sections.
+    ///
+    /// As the MPI standard allows for processes to run code in parallel (e.g. through
+    /// libraries like OpenMP or pthread), the `Vec` *must* be wrapped in a `Mutex` to
+    /// prevent concurrent attempts at pushing onto the traces vector. Each time an event
+    /// is registered, the caller must first take the lock on the `Mutex` before pushing
+    /// an `Event`.
+    ///
+    /// We have chosen to implement mutual exclusion in the Rust part of the interposition
+    /// library to reduce the critical section of code to the minimum, i.e. when a MPI call
+    /// has been registered and *needs* to be saved. This choice theoretically allows for
+    /// the best safety/performance ratio.
+    ///
+    /// It should be noted that in a MPI context, it is "rare" that the same process manages
+    /// a large number of threads. Therefore, the contention on the `Mutex` should not
+    /// impact the performance of the application and the blocking of threads will be kept
+    /// to a minimum.
+    pub static ref TRACES: Mutex<Vec<Event>> = Mutex::new(Vec::new());
 }
 
 /// Registers an `MPI_Init` call into the static `TRACES` vector.
