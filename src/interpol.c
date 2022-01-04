@@ -1,35 +1,28 @@
-#include "../include/interpol.h"
+#include <stdint.h>
+#include <stdio.h>
+
+#include "mpi.h"
+#include "interpol.h"
+#include "sync.h"
 
 // TODO: Change calls to `clock_gettime` into `rdtsc` and `sync_rdtscp`
 // in `MPI_Init` and `MPI_Finalize`.
 
 int *rank; //pointeur permettant de récupérer le rank du processus
 
-//fonction permettant la récupération des cycles
-unsigned long long rdtsc()
-{
-  unsigned long long a, d;
-  
-  __asm__ volatile ("rdtsc" : "=a" (a), "=d" (d));
-  
-  return (d << 32) | a;
-}
-
-
 int MPI_Init(int *argc, char ***argv)
 {
-  	uint64_t cycles = rdtsc();
-    double time = 0.0;
+  	uint64_t cycles = sync_rdtscp();
+    double time = 0.0; // gettime
     int ret = PMPI_Init(argc, argv);
 
-    //appel fonction en rust
+    // appel fonction en rust
     register_init(cycles, time);
 
-    rank = -1;
+    *rank = -1;
 
     return ret;
 }
-
 
 int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
              int tag, MPI_Comm comm)
@@ -39,7 +32,7 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
     //récupération du rank du processus
     int current_rank = MPI_Comm_rank(comm, rank);
     //récuperation de la valeur du comm
-    int c = comm;
+    int c = *comm;
 
     //rdtsc et appel de la fonction MPI
   	uint64_t cycles_lo = rdtsc();
