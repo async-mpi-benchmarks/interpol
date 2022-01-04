@@ -19,8 +19,8 @@ interpol-rs: $(RS_SRC)/*.rs
 test: $(RS_SRC)/*.rs
 	@cd interpol-rs/ && cargo test
 	
-docs: $(RS_SRC)/*.rs
-	@cd interpol-rs/ && cargo doc --open
+doc: $(RS_SRC)/*.rs
+	@cd interpol-rs/ && cargo doc --document-private-items --open
 
 clean:
 	@cd interpol-rs/ && cargo clean
