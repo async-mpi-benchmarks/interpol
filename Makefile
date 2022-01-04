@@ -1,13 +1,17 @@
 # Macros
-CC=gcc
+CC=mpicc
 CFLAGS=-std=c11 -Wall -Wextra -g3
 OFLAGS=-march=native -mtune=native -O2
 
+SRC=src
+INCLUDE=include
 RS_SRC=interpol-rs/src
-INTERPOL-RS_LIB=interpol-rs/target/release/
+RS_LIB=interpol-rs/target/release
 
-build: interpol-rs src/interpol.c src/sync.c
-	$(CC) $(CFLAGS) $(OFLAGS) -Iinclude/ -L$(INTERPOL-RS_LIB) -fPIC -shared src/interpol.c src/sync.c -o libinterpol.so -linterpol_rs 
+build: interpol-rs libinterpol.so
+
+libinterpol.so: $(SRC)/*.c $(INCLUDE)/*.h
+	$(CC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $< -o $@ -linterpol_rs
 
 interpol-rs: $(RS_SRC)/*.rs
 	@cd interpol-rs/ && cargo build --release
