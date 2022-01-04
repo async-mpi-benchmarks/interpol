@@ -107,7 +107,7 @@ int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
 }
 
 int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source,
-              int tag, MPI_Comm comm, MPI_Request * request)
+              int tag, MPI_Comm comm, MPI_Request *request)
 {
     //récupération de nombre de bytes reçu
     int bytes = MPI_Type_size(datatype, &count);
