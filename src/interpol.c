@@ -4,15 +4,12 @@
 
 #include "mpi.h"
 #include "interpol.h"
-#include "sync.h"
+#include "tsc.h"
 
-// TODO: Change calls to `clock_gettime` into `rdtsc` and `sync_rdtscp`
+// TODO: Change calls to `clock_gettime` into `rdtsc` and `fenced_rdtscp`
 // in `MPI_Init` and `MPI_Finalize`.
 
-// Valeur du rank
-int current_rank;
-// Pointeur permettant de récupérer le rank du processus
-int *rank;
+int proc_rank = -1;
 
 int MPI_Init(int *argc, char ***argv)
 {
@@ -20,14 +17,14 @@ int MPI_Init(int *argc, char ***argv)
     struct timeval time;
     gettimeofday(&time, NULL);
     // Récupération des cycles
-  	uint64_t cycles = sync_rdtscp();
+  	uint64_t cycles = fenced_rdtscp();
 
     int ret = PMPI_Init(argc, argv);
 
+    MPI_Comm_rank(MPI_COMM_WORLD, &proc_rank);
+
     // Appel fonction en Rust
     register_init(cycles, time.tv_usec);
-
-    current_rank = -1;
 
     return ret;
 }
@@ -37,8 +34,6 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
 {
     // Récupération du nombre bytes envoyés
     int bytes = MPI_Type_size(datatype, &count);
-    // Récupération du rank du processus
-    current_rank = MPI_Comm_rank(comm, rank);
     // Récuperation de la valeur du Comm
     int fcomm = PMPI_Comm_c2f(comm);
 
@@ -49,7 +44,7 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
 
     // Appel de fonction Rust
     register_send(cycles_lo, cycles_hi, (size_t)bytes,
-                  fcomm, current_rank, dest, tag);
+                  fcomm, proc_rank, dest, tag);
 
     return ret;
 }
@@ -60,8 +55,6 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
 {
     // Récupération de nombre de bytes reçus
     int bytes = MPI_Type_size(datatype, &count);
-    // Récupération du rank du processus
-    current_rank = MPI_Comm_rank(comm, rank);
     // Récuperation de la valeur du Comm
     int fcomm = PMPI_Comm_c2f(comm);
 
@@ -72,7 +65,7 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
 
     // Appel de la fonction Rust
     register_recv(cycles_lo, cycles_hi, (size_t)bytes,
-                  fcomm, current_rank, source, tag);
+                  fcomm, proc_rank, source, tag);
 
     return ret;
 }
@@ -89,7 +82,7 @@ int MPI_Wait(MPI_Request *request, MPI_Status *status)
     uint64_t cycles_hi = rdtsc();
 
     // Appel de la fonction Rust
-    register_wait(cycles_lo, cycles_hi, req_f, current_rank);
+    register_wait(cycles_lo, cycles_hi, req_f, proc_rank);
 
     return ret;
 }
@@ -99,8 +92,6 @@ int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
 {
     // Récupération de nombre de bytes reçus
     int bytes = MPI_Type_size(datatype, &count);
-    // Récupération du rank du processus
-    current_rank = MPI_Comm_rank(comm, rank);
     // Récuperation de la valeur du Comm
     int fcomm = PMPI_Comm_c2f(comm);
     // Récupération de la valeur de la Req
@@ -112,7 +103,7 @@ int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
 
     // Appel de la fonction Rust
     register_isend(cycles_lo, cycles_hi, (size_t)bytes,
-                   fcomm, req_f, current_rank, dest, tag);
+                   fcomm, req_f, proc_rank, dest, tag);
 
     return ret;
 }
@@ -122,8 +113,6 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source,
 {
     // Récupération de nombre de bytes reçus
     int bytes = MPI_Type_size(datatype, &count);
-    // Récupération du rank du processus
-    current_rank = MPI_Comm_rank(comm, rank);
     // Récuperation de la valeur du Comm
     int fcomm = PMPI_Comm_c2f(comm);
     // Récupération de la valeur de la Req
@@ -134,7 +123,7 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source,
     uint64_t cycles_hi = rdtsc();
 
     register_irecv(cycles_lo, cycles_hi, (size_t)bytes, fcomm,
-                   req_f, current_rank, source, tag);
+                   req_f, proc_rank, source, tag);
 
     return ret;
 }
@@ -144,21 +133,14 @@ int MPI_Finalize()
     // Appel de la fonction MPI
     int ret = PMPI_Finalize();
 
-    // Vérification qu'un appel a été fait entre le init et le finalize
-    if (*rank != -1) {
-        // Récupération du temps (on prendra la valeur en microsecondes)
-        struct timeval time;
-        gettimeofday(&time, NULL);
+    // Récupération du temps (on prendra la valeur en microsecondes)
+    struct timeval time;
+    gettimeofday(&time, NULL);
 
-        // Récupération des cycles
-        uint64_t cycles = rdtsc();
+    // Récupération des cycles
+    uint64_t cycles = fenced_rdtscp();
 
-        register_finalize(cycles, time.tv_usec, current_rank);
+    register_finalize(cycles, time.tv_usec, proc_rank);
 
-        return ret;
-    } else {
-        fprintf(stderr, "Aucun appel entre `MPI_Init` et `MPI_Finalize`\n");
-        return ret;
-    }
     return ret;
 }
