@@ -5,13 +5,13 @@
 static inline uint64_t fenced_rdtscp()
 {
     uint64_t tsc;
-    asm volatile (
+    asm volatile(
         // `LFENCE`: Serializes all load (read) operations that ocurred prior
         // to the `LFENCE` instruction in the program instruction stream, but
         // does not affect store operations.
         // If software requires `RDTSCP` to be executed prior to execution of
         // any subsequent instruction (including any memory accesses), it can
-        // execute `LFENCE` immediately after RDTSCP.
+        // execute `LFENCE` immediately after `RDTSCP`.
         //
         // Referenced from:
         // Intel 64 and IA-32 Architectures software developer's manual
