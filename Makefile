@@ -1,8 +1,7 @@
 # Macros
-CC=gcc
 MCC=mpicc
 CFLAGS=-Wall -Wextra -g3
-OFLAGS=-march=native -mtune=native -O2
+OFLAGS=-march=native -mtune=native -O2 -flto
 
 INCLUDE=include
 RS_SRC=interpol-rs/src
@@ -10,6 +9,10 @@ RS_LIB=interpol-rs/target/release
 SRC=src
 
 build: $(RS_LIB)/libinterpol_rs.so libinterpol.so
+
+setup: build
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/interpol/interpol-rs/target/release/
+	# cp libinterpol.so /usr/lib/
 
 libinterpol.so: $(INCLUDE)/tsc.h $(SRC)/interpol.c $(INCLUDE)/interpol.h
 	$(MCC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpol.c -o $@ -linterpol_rs
