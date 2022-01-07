@@ -148,7 +148,7 @@ pub extern "C" fn register_wait(cycles_lo: u64, cycles_hi: u64, req: MpiReq, cur
 
 /// Registers an `MPI_Finalize` call into the static `TRACES` vector.
 ///
-/// As this should be the final registered event, serialize the contents of the `TRACES` vector.
+/// As this *should* be the final registered event, serializes the contents of the `TRACES` vector.
 #[no_mangle]
 pub extern "C" fn register_finalize(cycles: u64, time: f64, rank: i32) {
     let finalize_event = Event::Finalize(Finalize::new(cycles, time, rank));

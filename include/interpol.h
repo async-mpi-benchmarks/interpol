@@ -11,7 +11,7 @@
 
 typedef int32_t MpiComm;
 
-typedef int32_t MpiReq;
+typedef uint32_t MpiReq;
 
 #define WORLD 0
 
@@ -77,7 +77,7 @@ void register_wait(uint64_t cycles_lo,
 /**
  * Registers an `MPI_Finalize` call into the static `TRACES` vector.
  *
- * As this should be the final registered event, serialize the contents of the `TRACES` vector.
+ * As this *should* be the final registered event, serializes the contents of the `TRACES` vector.
  */
 void register_finalize(uint64_t cycles,
                        double time,

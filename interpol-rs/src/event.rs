@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// A structure that stores information about `MPI_Init` calls.
 ///
-/// Stores the current time in milliseconds and the current number of CPU cycles.
+/// Stores the current time in microseconds and the current number of CPU cycles.
 /// The latter is get from the C `sync_rdtscp` function which uses the `rdtscp` and
 /// `cpuid` instructions.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -17,35 +17,9 @@ pub struct Init {
 }
 
 impl Init {
-    /// Creates a new `Init` structure from a number of cycles and a time in milliseconds.
+    /// Creates a new `Init` structure from a number of cycles and a time in microseconds.
     pub fn new(cycles: u64, time: f64) -> Self {
         Init { cycles, time }
-    }
-}
-
-/// A structure that stores information about `MPI_Finalize` calls.
-///
-/// Stores the rank of the process calling `MPI_Finalize` as well as the current time
-/// in milliseconds and the current number of CPU cycles.
-/// The latter is get from the C `sync_rdtscp` function which uses the `rdtscp` and
-/// `cpuid` instructions.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[repr(C)]
-pub struct Finalize {
-    cycles: u64,
-    time: f64,
-    current_rank: i32,
-}
-
-impl Finalize {
-    /// Creates a new `Finalize` structure from a rank, a number of cycles and a time in
-    /// milliseconds.
-    pub fn new(cycles: u64, time: f64, current_rank: i32) -> Self {
-        Finalize {
-            cycles,
-            time,
-            current_rank,
-        }
     }
 }
 
@@ -161,7 +135,33 @@ impl Wait {
     }
 }
 
-/// Information on a MPI event.
+/// A structure that stores information about `MPI_Finalize` calls.
+///
+/// Stores the rank of the process calling `MPI_Finalize` as well as the current time
+/// in microseconds and the current number of CPU cycles.
+/// The latter is get from the C `sync_rdtscp` function which uses the `rdtscp` and
+/// `cpuid` instructions.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
+pub struct Finalize {
+    cycles: u64,
+    time: f64,
+    current_rank: i32,
+}
+
+impl Finalize {
+    /// Creates a new `Finalize` structure from a rank, a number of cycles and a time in
+    /// miroseconds.
+    pub fn new(cycles: u64, time: f64, current_rank: i32) -> Self {
+        Finalize {
+            cycles,
+            time,
+            current_rank,
+        }
+    }
+}
+
+/// Trace information on a MPI event.
 ///
 /// This enum is used to store data on an MPI call, primarily in a `Vec`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
