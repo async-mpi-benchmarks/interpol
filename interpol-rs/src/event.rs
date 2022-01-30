@@ -147,6 +147,46 @@ impl Bcast {
     }
 }
 
+/// A structure that stores information about `MPI_Ibcast` calls.
+///
+/// Stores the number of cycles before and after calling the MPI function, the number of bytes
+/// exchanged, the MPI communicator and MPI request qualifying the call, the rank of the
+/// process making the call and the rank of the partner process
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
+pub struct Ibcast {
+    cycles_lo: u64,
+    cycles_hi: u64,
+    bytes: usize,
+    comm: MpiComm,
+    req: MpiReq,
+    current_rank: i32,
+    partner_rank: i32,
+}
+
+impl Ibcast {
+    /// Creates a new `Ibcast` structure from the specified parameters.
+    pub fn new(
+        cycles_lo: u64,
+        cycles_hi: u64,
+        bytes: usize,
+        comm: MpiComm,
+        req: MpiReq,
+        current_rank: i32,
+        partner_rank: i32,
+    ) -> Self {
+        Ibcast {
+            cycles_lo,
+            cycles_hi,
+            bytes,
+            comm,
+            req,
+            current_rank,
+            partner_rank,
+        }
+    }
+}
+
 /// A structure that stores information about `MPI_Wait` calls.
 ///
 /// Stores the number of cycles before and after calling the MPI function, the MPI request
@@ -209,6 +249,7 @@ pub enum Event {
     Isend(NonBlocking),
     Irecv(NonBlocking),
     Bcast(Bcast),
+    Ibcast(Ibcast),
     Wait(Wait),
     Finalize(Finalize),
 }
