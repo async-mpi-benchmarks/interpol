@@ -127,6 +127,23 @@ int MPI_Wait(MPI_Request *request, MPI_Status *status)
     return ret;
 }
 
+int MPI_Bcast(void* buf, int count, MPI_Datatype datatype, int source, MPI_Comm comm)
+{
+    uint64_t cycles_lo = rdtsc();
+    int ret = PMPI_Bcast(buf, count, datatype, source, comm);
+    uint64_t cycles_hi = rdtsc();
+
+    ssize_t bytes;
+    PMPI_Type_size(datatype, &bytes);
+    bytes *= count;
+    int comm_f = PMPI_Comm_c2f(comm);
+
+    register_bcast(cycles_lo, cycles_hi, (size_t) bytes, comm_f, 
+                   proc_rank, source);
+
+    return ret;
+}
+
 int MPI_Finalize()
 {
     struct timeval timeofday;

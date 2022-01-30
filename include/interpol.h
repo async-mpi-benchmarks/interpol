@@ -66,6 +66,13 @@ void register_irecv(uint64_t cycles_lo,
                     int32_t partner_rank,
                     int32_t tag);
 
+void register_bcast(uint64_t cycles_lo,
+                    uint64_t cycles_hi,
+                    size_t bytes,
+                    MpiComm comm,
+                    int32_t current_rank,
+                    int32_t partner_rank);
+
 /**
  * Registers an `MPI_Wait` call into the static `TRACES` vector.
  */
