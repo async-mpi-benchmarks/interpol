@@ -160,6 +160,29 @@ pub extern "C" fn register_bcast(
     TRACES.lock().unwrap().push(bcast_event);
 }
 
+/// Registers an `MPI_Ibcast` call into the static `TRACES` vector.
+#[no_mangle]
+pub extern "C" fn register_ibcast(
+    cycles_lo: u64,
+    cycles_hi: u64,
+    bytes: usize,
+    comm: MpiComm,
+    req: MpiReq,
+    current_rank: i32,
+    partner_rank: i32,
+) {
+    let ibcast_event = Event::Ibcast(Ibcast::new(
+        cycles_lo,
+        cycles_hi,
+        bytes,
+        comm,
+        req,
+        current_rank,
+        partner_rank,
+    ));
+    TRACES.lock().unwrap().push(ibcast_event);
+}
+
 /// Registers an `MPI_Wait` call into the static `TRACES` vector.
 #[no_mangle]
 pub extern "C" fn register_wait(cycles_lo: u64, cycles_hi: u64, req: MpiReq, current_rank: i32) {
