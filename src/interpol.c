@@ -144,6 +144,24 @@ int MPI_Bcast(void* buf, int count, MPI_Datatype datatype, int source, MPI_Comm 
     return ret;
 }
 
+int MPI_Ibcast(void *buf, int count, MPI_Datatype datatype, int source, MPI_Comm comm, MPI_Request *request)
+{
+    uint64_t cycles_lo = rdtsc();
+    int ret = PMPI_Ibcast(buf, count, datatype, source, comm, request);
+    uint64_t cycles_hi = rdtsc();
+
+    ssize_t bytes;
+    PMPI_Type_size(datatype, &bytes);
+    bytes *= count;
+    int comm_f = PMPI_Comm_c2f(comm);
+    uint32_t req_f = jenkins_one_at_a_time_hash((char *)request, sizeof(MPI_Request));
+
+    register_ibcast(cycles_lo, cycles_hi, (size_t) bytes, comm_f, 
+                    req_f, proc_rank, source);
+
+    return ret;
+}
+
 int MPI_Finalize()
 {
     struct timeval timeofday;
