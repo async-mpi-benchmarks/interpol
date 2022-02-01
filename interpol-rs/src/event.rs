@@ -187,6 +187,41 @@ impl Ibcast {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
+pub struct Gather {
+    cycles_lo: u64,
+    cycles_hi: u64,
+    bytes_s: usize,
+    bytes_r: usize,
+    comm: MpiComm,
+    current_rank: i32,
+    partner_rank: i32,
+}
+
+impl Gather {
+    /// Creates a new `Gather` structure from the specified parameters.
+    pub fn new(
+        cycles_lo: u64,
+        cycles_hi: u64,
+        bytes_s: usize,
+        bytes_r: usize,
+        comm: MpiComm,
+        current_rank: i32,
+        partner_rank: i32,
+    ) -> Self {
+        Gather {
+            cycles_lo,
+            cycles_hi,
+            bytes_s,
+            bytes_r,
+            comm,
+            current_rank,
+            partner_rank,
+        }
+    }
+}
+
 /// A structure that stores information about `MPI_Wait` calls.
 ///
 /// Stores the number of cycles before and after calling the MPI function, the MPI request
@@ -275,6 +310,7 @@ pub enum Event {
     Irecv(NonBlocking),
     Bcast(Bcast),
     Ibcast(Ibcast),
+    Gather(Gather),
     Wait(Wait),
     Barrier(Barrier),
     Finalize(Finalize),
