@@ -212,6 +212,31 @@ impl Wait {
     }
 }
 
+/// A structure that stores information about `MPI_Barrier` calls.
+///
+/// Stores the number of cycles before and after calling the MPI function,
+/// the MPI communicator and the rank of the process making the call.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
+pub struct Barrier {
+    cycles_lo: u64,
+    cycles_hi: u64,
+    comm: MpiComm,
+    current_rank: i32,
+}
+
+impl Barrier {
+    /// Creates a new `Barrier` structure from the specified parameters.
+    pub fn new(cycles_lo: u64, cycles_hi: u64, comm: MpiComm, current_rank: i32) -> Self {
+        Barrier {
+            cycles_lo,
+            cycles_hi,
+            comm,
+            current_rank,
+        }
+    }
+}
+
 /// A structure that stores information about `MPI_Finalize` calls.
 ///
 /// Stores the rank of the process calling `MPI_Finalize` as well as the current time
@@ -251,6 +276,7 @@ pub enum Event {
     Bcast(Bcast),
     Ibcast(Ibcast),
     Wait(Wait),
+    Barrier(Barrier),
     Finalize(Finalize),
 }
 
