@@ -175,6 +175,28 @@ int MPI_Barrier(MPI_Comm comm)
     return ret;
 }
 
+int MPI_Gather(const void* buf_s, int count_s,MPI_Datatype datatype_s,
+                void* buf_r, int count_r, MPI_Datatype datatype_r,
+                int source, MPI_Comm comm)
+{
+    uint64_t cycles_lo = rdtsc();
+    int ret = PMPI_Gather(buf_s, count_s, datatype_s, buf_r, count_r, datatype_r, 
+                            source, comm);
+    uint64_t cycles_hi = rdtsc();
+
+    ssize_t bytes_s, bytes_r;
+    PMPI_Type_size(datatype_s, &bytes_s);
+    bytes_s *= count_s;
+    PMPI_Type_size(datatype_r, &bytes_r);
+    bytes_r *= count_r;
+    int comm_f = PMPI_Comm_c2f(comm);
+
+    register_gather(cycles_lo, cycles_hi, (size_t) bytes_s, (size_t) bytes_r,
+                    comm_f, proc_rank, source);
+
+    return ret;
+}
+
 int MPI_Finalize()
 {
     struct timeval timeofday;
