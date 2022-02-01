@@ -206,6 +206,31 @@ pub extern "C" fn register_gather(
     TRACES.lock().unwrap().push(gather_event);
 }
 
+/// Registers an `MPI_Igather` call into the static `TRACES` vector.
+#[no_mangle]
+pub extern "C" fn register_igather(
+    cycles_lo: u64,
+    cycles_hi: u64,
+    bytes_s: usize,
+    bytes_r: usize,
+    comm: MpiComm,
+    req: MpiReq,
+    current_rank: i32,
+    partner_rank: i32,
+) {
+    let igather_event = Event::Igather(Igather::new(
+        cycles_lo,
+        cycles_hi,
+        bytes_s,
+        bytes_r,
+        comm,
+        req,
+        current_rank,
+        partner_rank,
+    ));
+    TRACES.lock().unwrap().push(igather_event);
+}
+
 /// Registers an `MPI_Wait` call into the static `TRACES` vector.
 #[no_mangle]
 pub extern "C" fn register_wait(cycles_lo: u64, cycles_hi: u64, req: MpiReq, current_rank: i32) {
