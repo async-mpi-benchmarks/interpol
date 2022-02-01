@@ -183,6 +183,29 @@ pub extern "C" fn register_ibcast(
     TRACES.lock().unwrap().push(ibcast_event);
 }
 
+/// Registers an `MPI_Gather` call into the static `TRACES` vector.
+#[no_mangle]
+pub extern "C" fn register_gather(
+    cycles_lo: u64,
+    cycles_hi: u64,
+    bytes_s: usize,
+    bytes_r: usize,
+    comm: MpiComm,
+    current_rank: i32,
+    partner_rank: i32,
+) {
+    let gather_event = Event::Gather(Gather::new(
+        cycles_lo,
+        cycles_hi,
+        bytes_s,
+        bytes_r,
+        comm,
+        current_rank,
+        partner_rank,
+    ));
+    TRACES.lock().unwrap().push(gather_event);
+}
+
 /// Registers an `MPI_Wait` call into the static `TRACES` vector.
 #[no_mangle]
 pub extern "C" fn register_wait(cycles_lo: u64, cycles_hi: u64, req: MpiReq, current_rank: i32) {
