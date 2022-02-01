@@ -99,6 +99,18 @@ void register_gather(uint64_t cycles_lo,
                      int32_t partner_rank);
 
 /**
+ * Registers an `MPI_Igather` call into the static `TRACES` vector.
+ */
+void register_igather(uint64_t cycles_lo,
+                      uint64_t cycles_hi,
+                      size_t bytes_s,
+                      size_t bytes_r,
+                      MpiComm comm,
+                      MpiReq req,
+                      int32_t current_rank,
+                      int32_t partner_rank);
+
+/**
  * Registers an `MPI_Wait` call into the static `TRACES` vector.
  */
 void register_wait(uint64_t cycles_lo,

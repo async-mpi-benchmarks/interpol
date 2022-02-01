@@ -197,6 +197,31 @@ int MPI_Gather(const void* buf_s, int count_s,MPI_Datatype datatype_s,
     return ret;
 }
 
+int MPI_Igather(const void *buf_s, int count_s, MPI_Datatype datatype_s,
+                void *buf_r, int count_r, MPI_Datatype datatype_r,
+                int source, MPI_Comm comm, MPI_Request *request)
+{
+    uint64_t cycles_lo = rdtsc();
+    int ret = PMPI_Gather(buf_s, count_s, datatype_s, buf_r, count_r, datatype_r, 
+                            source, comm);
+    uint64_t cycles_hi = rdtsc();
+
+    ssize_t bytes_s, bytes_r;
+    PMPI_Type_size(datatype_s, &bytes_s);
+    bytes_s *= count_s;
+    PMPI_Type_size(datatype_r, &bytes_r);
+    bytes_r *= count_r;
+    int comm_f = PMPI_Comm_c2f(comm);
+    uint32_t req_f = jenkins_one_at_a_time_hash((char *)request, sizeof(MPI_Request));
+
+
+    register_igather(cycles_lo, cycles_hi, (size_t) bytes_s, (size_t) bytes_r,
+                    comm_f, req_f, proc_rank, source);
+
+    return ret;
+}
+
+
 int MPI_Finalize()
 {
     struct timeval timeofday;
