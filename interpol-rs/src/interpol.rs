@@ -190,6 +190,13 @@ pub extern "C" fn register_wait(cycles_lo: u64, cycles_hi: u64, req: MpiReq, cur
     TRACES.lock().unwrap().push(wait_event);
 }
 
+/// Registers an `MPI_Barrier` call into the static `TRACES` vector.
+#[no_mangle]
+pub extern "C" fn register_barrier(cycles_lo: u64, cycles_hi: u64, comm: MpiComm, current_rank: i32) {
+    let barrier_event = Event::Barrier(Barrier::new(cycles_lo, cycles_hi, comm, current_rank));
+    TRACES.lock().unwrap().push(barrier_event);
+}
+
 /// Registers an `MPI_Finalize` call into the static `TRACES` vector.
 ///
 /// As this *should* be the final registered event, serializes the contents of the `TRACES` vector.
