@@ -96,6 +96,14 @@ void register_wait(uint64_t cycles_lo,
                    int32_t current_rank);
 
 /**
+ * Registers an `MPI_Barrier` call into the static `TRACES` vector.
+ */
+void register_barrier(uint64_t cycles_lo,
+                      uint64_t cycles_hi,
+                      MpiComm comm,
+                      int32_t current_rank);
+
+/**
  * Registers an `MPI_Finalize` call into the static `TRACES` vector.
  *
  * As this *should* be the final registered event, serializes the contents of the `TRACES` vector.

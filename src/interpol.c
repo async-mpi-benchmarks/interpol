@@ -162,6 +162,19 @@ int MPI_Ibcast(void *buf, int count, MPI_Datatype datatype, int source, MPI_Comm
     return ret;
 }
 
+int MPI_Barrier(MPI_Comm comm)
+{
+    uint64_t cycles_lo = rdtsc();
+    int ret = PMPI_Barrier(comm);
+    uint64_t cycles_hi = rdtsc();
+
+    int comm_f = PMPI_Comm_c2f(comm);
+
+    register_barrier(cycles_lo, cycles_hi, comm_f, proc_rank);
+
+    return ret;
+}
+
 int MPI_Finalize()
 {
     struct timeval timeofday;
