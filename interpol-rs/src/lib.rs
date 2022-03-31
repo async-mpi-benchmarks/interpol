@@ -1,7 +1,9 @@
-pub mod event;
 pub mod interpol;
+pub mod mpi_events;
+pub mod types;
 
-type MpiComm = i32;
-type MpiReq = u32;
+pub(crate) mod mpi_consts {
+    use crate::types;
 
-pub const WORLD: MpiComm = 0;
+    pub const MPI_COMM_WORLD: types::MpiComm = 0;
+}
