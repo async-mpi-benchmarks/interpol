@@ -8,13 +8,16 @@ RS_SRC=interpol-rs/src
 RS_LIB=interpol-rs/target/release
 SRC=src
 
-build: $(RS_LIB)/libinterpol_rs.so libinterpol.so
+build: libinterpol.so
+	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/gabrl/uni/m1/s1/ppn/interpol/interpol-rs/target/release/
 
-setup: build
-	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/interpol/interpol-rs/target/release/
-	# cp libinterpol.so /usr/lib/
+install: build
+	@cp libinterpol.so /usr/lib/
 
-libinterpol.so: $(INCLUDE)/tsc.h $(SRC)/interpol.c $(INCLUDE)/interpol.h
+uninstall:
+	@rm /usr/lib/libinterpol.so
+
+libinterpol.so: $(RS_LIB)/libinterpol_rs.so $(INCLUDE)/tsc.h $(SRC)/interpol.c $(INCLUDE)/interpol.h
 	$(MCC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpol.c -o $@ -linterpol_rs
 
 $(RS_LIB)/libinterpol_rs.so: $(RS_SRC)/*.rs
@@ -26,6 +29,11 @@ test: $(RS_SRC)/*.rs
 doc: $(RS_SRC)/*.rs
 	@cd interpol-rs/ && cargo doc --document-private-items --open
 
+reset:
+	@rm -Rf $(TARGET) libinterpol.so
+
 clean:
 	@cd interpol-rs/ && cargo clean
 	@rm -Rf $(TARGET) libinterpol.so
+
+.PHONY: build install uninstall test doc reset clean
