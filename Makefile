@@ -8,8 +8,10 @@ RS_SRC=interpol-rs/src
 RS_LIB=interpol-rs/target/release
 SRC=src
 
+PWD=$(shell pwd)
+
 build: libinterpol.so
-	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/uni/m1/async_mpi_benchmarks/interpol/interpol-rs/target/release/
+	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(PWD)/interpol-rs/target/release/
 
 install: build
 	@cp libinterpol.so /usr/lib/
