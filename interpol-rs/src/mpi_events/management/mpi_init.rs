@@ -1,6 +1,8 @@
+use crate::interpol::Register;
 use crate::types::{MpiRank, Tsc, Usecs};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use std::collections::TryReserveError;
 
 /// A structure that stores information about `MPI_Init` calls.
 ///
@@ -21,11 +23,17 @@ impl MpiInit {
     /// Creates a new `MpiInit` structure based off of a `MpiRank`, a number of CPU cycles and a
     /// time in microseconds.
     pub fn new(rank: MpiRank, tsc: Tsc, time: Usecs) -> Self {
-        Self {
-            rank,
-            tsc,
-            time,
-        }
+        Self { rank, tsc, time }
+    }
+}
+
+#[typetag::serde]
+impl Register for MpiInit {
+    fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError> {
+        // Ensure that the program does not panic if allocation fails
+        events.try_reserve_exact(2 * events.len())?;
+        events.push(Box::new(self));
+        Ok(())
     }
 }
 
@@ -57,8 +65,14 @@ mod tests {
 
     #[test]
     fn deserializes() {
-        let init = MpiInit::new(0, 1024, 0.1);
-        let serialized = serde_json::to_string_pretty(&init).expect("failed to serialize `MpiInit`");
+        let init = MpiInitBuilder::default()
+            .rank(0)
+            .tsc(1024)
+            .time(0.1)
+            .build()
+            .expect("failed to build `MpiInit`");
+        let serialized =
+            serde_json::to_string_pretty(&init).expect("failed to serialize `MpiInit`");
         let deserialized: MpiInit =
             serde_json::from_str(&serialized).expect("failed to deserialize `MpiInit`");
 

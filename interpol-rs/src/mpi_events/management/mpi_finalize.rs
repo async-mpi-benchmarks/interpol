@@ -1,6 +1,8 @@
+use crate::interpol::Register;
 use crate::types::{MpiRank, Tsc, Usecs};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use std::collections::TryReserveError;
 
 /// A structure that stores information about `MPI_Finalize` calls.
 ///
@@ -21,11 +23,17 @@ impl MpiFinalize {
     /// Creates a new `MpiFinalize` structure based off of a `MpiRank`, a number of CPU cycles and
     /// a time in microseconds.
     pub fn new(rank: MpiRank, tsc: Tsc, time: Usecs) -> Self {
-        Self {
-            rank,
-            tsc,
-            time,
-        }
+        Self { rank, tsc, time }
+    }
+}
+
+#[typetag::serde]
+impl Register for MpiFinalize {
+    fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError> {
+        // Ensure that the program does not panic if allocation fails
+        events.try_reserve_exact(2 * events.len())?;
+        events.push(Box::new(self));
+        Ok(())
     }
 }
 

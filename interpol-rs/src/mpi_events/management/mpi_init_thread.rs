@@ -1,6 +1,8 @@
+use crate::interpol::Register;
 use crate::types::{MpiRank, Tsc, Usecs};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use std::collections::TryReserveError;
 
 /// A structure that stores information about `MPI_Init_thread` calls.
 ///
@@ -29,6 +31,16 @@ impl MpiInitThread {
             time,
             provided_thread_lvl,
         }
+    }
+}
+
+#[typetag::serde]
+impl Register for MpiInitThread {
+    fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError> {
+        // Ensure that the program does not panic if allocation fails
+        events.try_reserve_exact(2 * events.len())?;
+        events.push(Box::new(self));
+        Ok(())
     }
 }
 
