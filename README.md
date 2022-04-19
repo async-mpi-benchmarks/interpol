@@ -1,6 +1,6 @@
 # Interpol
 
-Interpol is an interposition library designed to trace and profile
+**Interpol** is an interposition library designed to trace and profile
 non-blocking MPI calls.
 This tools aims at evaluating the efficiency of non-blocking MPI applications,
 specifically measuring the communication-computation overlap and pin pointing
@@ -9,10 +9,10 @@ the critical code sections.
 The library generates JSON traces of the intercepted MPI events which can 
 thereafter be exploited using the project's provided GUI interface, [MPI Trace
 Analyzer](https://github.com/async-mpi-benchmarks/Interface), developed
-alongside the Interpol library.
+alongside the **Interpol** library.
 
 ## Features
-Currently, the library redefines the following *OpenMPI* functions:
+Currently, the library redefines the following **OpenMPI** functions:
 - `MPI_Init`/`MPI_Finalize`
 - `MPI_Send`/`MPI_Recv`
 - `MPI_Isend`/`MPI_Irecv`
