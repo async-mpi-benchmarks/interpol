@@ -1,7 +1,7 @@
 # Macros
 MCC=mpicc
 CFLAGS=-Wall -Wextra -g3
-OFLAGS=-march=native -mtune=native -O2 -flto
+OFLAGS=-march=native -mtune=native -Os -flto
 
 INCLUDE=include
 RS_SRC=interpol-rs/src
@@ -9,7 +9,7 @@ RS_LIB=interpol-rs/target/release
 SRC=src
 
 build: libinterpol.so
-	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/gabrl/uni/m1/s1/ppn/interpol/interpol-rs/target/release/
+	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/uni/m1/async_mpi_benchmarks/interpol/interpol-rs/target/release/
 
 install: build
 	@cp libinterpol.so /usr/lib/
