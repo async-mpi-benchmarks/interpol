@@ -1,7 +1,7 @@
 # Macros
-MCC=mpicc
+CC=mpicc
 CFLAGS=-Wall -Wextra -g3
-OFLAGS=-march=native -mtune=native -Os -flto
+OFLAGS=-march=native -mtune=native -Os
 
 INCLUDE=include
 RS_SRC=interpol-rs/src
@@ -20,7 +20,7 @@ uninstall:
 	@rm /usr/lib/libinterpol.so
 
 libinterpol.so: $(RS_LIB)/libinterpol_rs.so $(INCLUDE)/tsc.h $(SRC)/interpol.c $(INCLUDE)/interpol.h
-	$(MCC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpol.c -o $@ -linterpol_rs
+	$(CC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpol.c -o $@ -linterpol_rs
 
 $(RS_LIB)/libinterpol_rs.so: $(RS_SRC)/*.rs
 	@cd interpol-rs/ && cargo build --release
