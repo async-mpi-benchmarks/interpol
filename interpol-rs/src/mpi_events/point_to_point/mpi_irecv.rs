@@ -12,7 +12,8 @@ use std::collections::TryReserveError;
 /// - the identifier of the MPI communicator;
 /// - the identifier of the MPI request;
 /// - the tag of the communication;
-/// - the number of CPU cycles before and after the call.
+/// - the current value of the Time Stamp counter before the call to `MPI_Irecv`.
+/// - the duration of the call.
 /// The TSC is measured using the `rdtscp` and `lfence` instructions (see Intel documentation for
 /// further information).
 #[derive(Builder, Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -23,8 +24,8 @@ pub struct MpiIrecv {
     comm: MpiComm,
     req: MpiReq,
     tag: MpiTag,
-    tsc_before: Tsc,
-    tsc_after: Tsc,
+    tsc: Tsc,
+    duration: Tsc,
 }
 
 impl MpiIrecv {
@@ -36,8 +37,8 @@ impl MpiIrecv {
         comm: MpiComm,
         req: MpiReq,
         tag: MpiTag,
-        tsc_before: Tsc,
-        tsc_after: Tsc,
+        tsc: Tsc,
+        duration: Tsc,
     ) -> Self {
         Self {
             current_rank,
@@ -46,8 +47,8 @@ impl MpiIrecv {
             comm,
             req,
             tag,
-            tsc_before,
-            tsc_after,
+            tsc,
+            duration,
         }
     }
 }
@@ -77,8 +78,8 @@ mod tests {
             .comm(MPI_COMM_WORLD)
             .req(7)
             .tag(42)
-            .tsc_before(1024)
-            .tsc_after(2048)
+            .tsc(1024)
+            .duration(2048)
             .build()
             .expect("failed to build `MpiIrecv`");
 
@@ -88,7 +89,7 @@ mod tests {
     #[test]
     fn serializes() {
         let irecv = MpiIrecv::new(0, 1, 8, MPI_COMM_WORLD, 7, 42, 1024, 2048);
-        let json = String::from("{\"current_rank\":0,\"partner_rank\":1,\"nb_bytes\":8,\"comm\":0,\"req\":7,\"tag\":42,\"tsc_before\":1024,\"tsc_after\":2048}");
+        let json = String::from("{\"current_rank\":0,\"partner_rank\":1,\"nb_bytes\":8,\"comm\":0,\"req\":7,\"tag\":42,\"tsc\":1024,\"duration\":2048}");
         let serialized = serde_json::to_string(&irecv).expect("failed to serialize `MpiIrecv`");
 
         assert_eq!(json, serialized);
@@ -103,8 +104,8 @@ mod tests {
             .comm(MPI_COMM_WORLD)
             .req(7)
             .tag(42)
-            .tsc_before(1024)
-            .tsc_after(2048)
+            .tsc(1024)
+            .duration(2048)
             .build()
             .expect("failed to build `MpiIrecv`");
         let serialized =

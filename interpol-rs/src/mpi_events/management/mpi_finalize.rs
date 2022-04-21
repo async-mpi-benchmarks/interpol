@@ -8,13 +8,13 @@ use std::collections::TryReserveError;
 ///
 /// The following data is gathered when the MPI function is called:
 /// - the rank of the process;
-/// - the number of CPU cycles;
+/// - the current value of the Time Stamp counter;
 /// - the time in microseconds;
 /// The TSC is measured using the `rdtscp` and `lfence` instructions (see Intel documentation for
 /// further information).
 #[derive(Builder, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MpiFinalize {
-    rank: MpiRank,
+    current_rank: MpiRank,
     tsc: Tsc,
     time: Usecs,
 }
@@ -22,8 +22,12 @@ pub struct MpiFinalize {
 impl MpiFinalize {
     /// Creates a new `MpiFinalize` structure based off of a `MpiRank`, a number of CPU cycles and
     /// a time in microseconds.
-    pub fn new(rank: MpiRank, tsc: Tsc, time: Usecs) -> Self {
-        Self { rank, tsc, time }
+    pub fn new(current_rank: MpiRank, tsc: Tsc, time: Usecs) -> Self {
+        Self {
+            current_rank,
+            tsc,
+            time,
+        }
     }
 }
 
@@ -45,7 +49,7 @@ mod tests {
     fn builds() {
         let finalize_new = MpiFinalize::new(0, 1024, 0.1);
         let finalize_builder = MpiFinalizeBuilder::default()
-            .rank(0)
+            .current_rank(0)
             .tsc(1024)
             .time(0.1)
             .build()
@@ -57,7 +61,7 @@ mod tests {
     #[test]
     fn serializes() {
         let finalize = MpiFinalize::new(0, 1024, 0.1);
-        let json = String::from("{\"rank\":0,\"tsc\":1024,\"time\":0.1}");
+        let json = String::from("{\"current_rank\":0,\"tsc\":1024,\"time\":0.1}");
         let serialized =
             serde_json::to_string(&finalize).expect("failed to serialize `MpiFinalize`");
         assert_eq!(json, serialized);
@@ -66,7 +70,7 @@ mod tests {
     #[test]
     fn deserializes() {
         let finalize = MpiFinalizeBuilder::default()
-            .rank(0)
+            .current_rank(0)
             .tsc(1024)
             .time(0.1)
             .build()
