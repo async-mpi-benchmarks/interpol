@@ -24,14 +24,15 @@ typedef int32_t MpiReq;
 /**
  * Registers an `MPI_Init` call into a static vector.
  */
-void register_init(MpiRank rank, Tsc tsc, Usecs time);
+void register_init(MpiRank current_rank, Tsc tsc, Usecs time);
 
 /**
  * Registers an `MPI_Init_thread` call into a static vector.
  */
-void register_init_thread(MpiRank rank,
+void register_init_thread(MpiRank current_rank,
                           Tsc tsc,
                           Usecs time,
+                          int32_t required_thread_lvl,
                           int32_t provided_thread_lvl);
 
 /**
@@ -40,7 +41,7 @@ void register_init_thread(MpiRank rank,
  * As this *should* be the final registered event, the contents of the vector will be sorted with
  * every other MPI processes vectors' and then serialized.
  */
-void register_finalize(MpiRank rank,
+void register_finalize(MpiRank current_rank,
                        Tsc tsc,
                        Usecs time);
 
@@ -52,8 +53,8 @@ void register_send(MpiRank current_rank,
                    uint32_t nb_bytes,
                    MpiComm comm,
                    MpiTag tag,
-                   Tsc tsc_before,
-                   Tsc tsc_after);
+                   Tsc tsc,
+                   Tsc duration);
 
 /**
  * Registers an `MPI_Recv` call into a static vector.
@@ -63,8 +64,8 @@ void register_recv(MpiRank current_rank,
                    uint32_t nb_bytes,
                    MpiComm comm,
                    MpiTag tag,
-                   Tsc tsc_before,
-                   Tsc tsc_after);
+                   Tsc tsc,
+                   Tsc duration);
 
 /**
  * Registers an `MPI_Isend` call into a static vector.
@@ -73,10 +74,10 @@ void register_isend(MpiRank current_rank,
                     MpiRank partner_rank,
                     uint32_t nb_bytes,
                     MpiComm comm,
-                    MpiTag tag,
                     MpiReq req,
-                    Tsc tsc_before,
-                    Tsc tsc_after);
+                    MpiTag tag,
+                    Tsc tsc,
+                    Tsc duration);
 
 /**
  * Registers an `MPI_Irecv` call into a static vector.
@@ -85,12 +86,29 @@ void register_irecv(MpiRank current_rank,
                     MpiRank partner_rank,
                     uint32_t nb_bytes,
                     MpiComm comm,
-                    MpiTag tag,
                     MpiReq req,
-                    Tsc tsc_before,
-                    Tsc tsc_after);
+                    MpiTag tag,
+                    Tsc tsc,
+                    Tsc duration);
+
+/**
+ * Registers an `MPI_Barrier` call into a static vector.
+ */
+void register_barrier(MpiRank current_rank,
+                      MpiComm comm,
+                      Tsc tsc,
+                      Tsc duration);
+
+/**
+ * Registers an `MPI_Test` call into a static vector.
+ */
+void register_test(MpiRank current_rank,
+                   MpiReq req,
+                   bool finished,
+                   Tsc tsc,
+                   Tsc duration);
 
 /**
  * Registers an `MPI_Wait` call into a static vector.
  */
-void register_wait(MpiRank rank, MpiReq req, Tsc tsc_before, Tsc tsc_after);
+void register_wait(MpiRank current_rank, MpiReq req, Tsc tsc, Tsc duration);
