@@ -100,6 +100,15 @@ void register_barrier(MpiRank current_rank,
                       Tsc duration);
 
 /**
+ * Registers an `MPI_Ibarrier` call into a static vector.
+ */
+void register_ibarrier(MpiRank current_rank,
+                       MpiComm comm,
+                       MpiReq req,
+                       Tsc tsc,
+                       Tsc duration);
+
+/**
  * Registers an `MPI_Test` call into a static vector.
  */
 void register_test(MpiRank current_rank,
