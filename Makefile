@@ -11,13 +11,13 @@ SRC=src
 PWD=$(shell pwd)
 
 build: libinterpol.so
-	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(PWD)/interpol-rs/target/release/
+	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(PWD)/interpol-rs/target/release/:$(PWD)
 
 install: build
-	@cp libinterpol.so /usr/lib/
+	@cp libinterpol.so interpol-rs/target/release/libinterpol_rs.so /usr/lib/
 
 uninstall:
-	@rm /usr/lib/libinterpol.so
+	@rm /usr/lib/libinterpol.so /usr/lib/libinterpol_rs.so 
 
 libinterpol.so: $(RS_LIB)/libinterpol_rs.so $(INCLUDE)/tsc.h $(SRC)/interpol.c $(INCLUDE)/interpol.h
 	$(CC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpol.c -o $@ -linterpol_rs

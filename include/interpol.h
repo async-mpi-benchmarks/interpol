@@ -30,10 +30,10 @@ void register_init(MpiRank current_rank, Tsc tsc, Usecs time);
  * Registers an `MPI_Init_thread` call into a static vector.
  */
 void register_init_thread(MpiRank current_rank,
-                          Tsc tsc,
-                          Usecs time,
                           int32_t required_thread_lvl,
-                          int32_t provided_thread_lvl);
+                          int32_t provided_thread_lvl,
+                          Tsc tsc,
+                          Usecs time);
 
 /**
  * Registers an `MPI_Finalize` call into a static vector.

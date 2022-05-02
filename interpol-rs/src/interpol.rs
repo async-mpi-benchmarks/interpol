@@ -92,10 +92,10 @@ pub extern "C" fn register_init(current_rank: MpiRank, tsc: Tsc, time: Usecs) {
 #[no_mangle]
 pub extern "C" fn register_init_thread(
     current_rank: MpiRank,
-    tsc: Tsc,
-    time: Usecs,
     required_thread_lvl: i32,
     provided_thread_lvl: i32,
+    tsc: Tsc,
+    time: Usecs,
 ) {
     let init_thread_event = match MpiInitThreadBuilder::default()
         .current_rank(current_rank)
