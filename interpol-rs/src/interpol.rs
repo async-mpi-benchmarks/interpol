@@ -13,7 +13,8 @@ use crate::mpi_events::{
         mpi_send::MpiSendBuilder,
     },
     synchronization::{
-        mpi_barrier::MpiBarrierBuilder, mpi_test::MpiTestBuilder, mpi_wait::MpiWaitBuilder,
+        mpi_barrier::MpiBarrierBuilder, mpi_ibarrier::MpiIbarrierBuilder, mpi_test::MpiTestBuilder,
+        mpi_wait::MpiWaitBuilder,
     },
 };
 use crate::types::{MpiComm, MpiRank, MpiReq, MpiTag, Tsc, Usecs};
@@ -172,7 +173,7 @@ pub extern "C" fn register_finalize(current_rank: MpiRank, tsc: Tsc, time: Usecs
     // Serialize the contents of the `Vec` and write them to an output file
     let ser_traces = serde_json::to_string_pretty(&*guard)
         .expect("failed to serialize vector contents to string");
-    let filename = format!("/tmp/rank{}_traces.json", current_rank.to_string());
+    let filename = format!("rank{}_traces.json", current_rank.to_string());
     let mut file = match File::create(filename.clone()) {
         Ok(file) => file,
         Err(err) => {
@@ -433,6 +434,51 @@ pub extern "C" fn register_barrier(current_rank: MpiRank, comm: MpiComm, tsc: Ts
             print_err(
                 current_rank,
                 "failed to register `MpiBarrier` event",
+                format!("{err}").as_str(),
+            );
+            return;
+        }
+    }
+}
+
+/// Registers an `MPI_Ibarrier` call into a static vector.
+#[no_mangle]
+pub extern "C" fn register_ibarrier(
+    current_rank: MpiRank,
+    comm: MpiComm,
+    req: MpiReq,
+    tsc: Tsc,
+    duration: Tsc,
+) {
+    let ibarrier_event = match MpiIbarrierBuilder::default()
+        .current_rank(current_rank)
+        .comm(comm)
+        .req(req)
+        .tsc(tsc)
+        .duration(duration)
+        .build()
+    {
+        Ok(event) => event,
+        Err(err) => {
+            print_err(
+                current_rank,
+                "failed to build `MpiIbarrier` event",
+                format!("{err}").as_str(),
+            );
+            return;
+        }
+    };
+
+    let mut guard = EVENTS
+        .0
+        .lock()
+        .expect("failed to take the lock on vector for `MpiIbarrier` event");
+    match ibarrier_event.register(&mut guard) {
+        Ok(_) => (),
+        Err(err) => {
+            print_err(
+                current_rank,
+                "failed to register `MpiIbarrier` event",
                 format!("{err}").as_str(),
             );
             return;
