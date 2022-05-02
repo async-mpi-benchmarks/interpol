@@ -149,6 +149,19 @@ int MPI_Barrier(MPI_Comm comm)
     return ret;
 }
 
+int MPI_Ibarrier(MPI_Comm comm, MPI_Request* request)
+{
+    Tsc const tsc = rdtsc();
+    int ret = PMPI_Barrier(comm);
+    Tsc const duration = rdtsc() - tsc;
+
+    MpiComm const comm_f = PMPI_Comm_c2f(comm);
+    MpiReq const req_f = PMPI_Request_c2f(*request);
+
+    register_ibarrier(current_rank, comm_f, req_f, tsc, duration);
+    return ret;
+}
+
 int MPI_Test(MPI_Request* request, int* flag, MPI_Status* status)
 {
     Tsc const tsc = rdtsc();
