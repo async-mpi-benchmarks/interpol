@@ -12,7 +12,7 @@ Currently, the library redefines the following **MPI** functions:
 - `MPI_Finalize`;
 - `MPI_Send`/`MPI_Recv`;
 - `MPI_Isend`/`MPI_Irecv`;
-- `MPI_Barrier`;
+- `MPI_Barrier`/`MPI_Ibarrier`;
 - `MPI_Test`;
 - `MPI_Wait`.
 
@@ -54,7 +54,7 @@ Therefore, if the library and your program are not compiled with the same MPI im
 
 If you've installed the library, the command to preload it when running your MPI application should be:
 ```sh
-LD_PRELOAD=libinterpol.so mpi_run_command -n <NB_PROC> <BINARY>
+LD_PRELOAD=libinterpol.so <MPICMD> -n <NB_PROC> <BINARY>
 ```
 Otherwise, you need to provide the absolute path to the `libinterpol.so` file.
 
