@@ -13,8 +13,7 @@ use crate::mpi_events::{
         mpi_send::MpiSendBuilder,
     },
     synchronization::{
-        mpi_barrier::MpiBarrierBuilder, mpi_ibarrier::MpiIbarrierBuilder, mpi_test::MpiTestBuilder,
-        mpi_wait::MpiWaitBuilder,
+        mpi_barrier::MpiBarrierBuilder, mpi_test::MpiTestBuilder, mpi_wait::MpiWaitBuilder,
     },
 };
 use crate::types::{MpiComm, MpiRank, MpiReq, MpiTag, Tsc, Usecs};
@@ -52,9 +51,88 @@ lazy_static! {
     static ref EVENTS: Trace = Trace(Mutex::new(Vec::new()));
 }
 
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
+#[allow(dead_code)]
+enum MpiCallType {
+    Init,
+    Initthread,
+    Finalize,
+    Send,
+    Isend,
+    Recv,
+    Irecv,
+    Wait,
+    Test,
+    Barrier,
+    Ibarrier,
+    Ibcast, 
+    Ireduce, 
+    Iscatter,
+    Igather
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
+pub struct MpiCall {
+    call: MpiCallType,
+    tsc: Tsc,
+    duration: Tsc,
+    time: Usecs,
+    nb_bytes: u32,
+    comm: MpiComm,
+    req: MpiReq,
+    current_rank: MpiRank,
+    partner_rank: *mut MpiRank,
+    tag: MpiTag,
+    required_thread_lvl: i32,
+    provided_thread_lvl: i32,
+    finished: bool,
+}
+
+#[no_mangle]
+pub extern "C" fn register_mpi_call(call: MpiCall) {
+    unsafe
+    {
+        match call.call {
+            MpiCallType::Init=>register_init(call.current_rank, call.tsc, call.time),
+
+            MpiCallType::Initthread=>register_init_thread(call.current_rank, call.tsc, call.time, call.required_thread_lvl, call.provided_thread_lvl),
+
+            MpiCallType::Finalize=>register_finalize(call.current_rank, call.tsc, call.time),
+
+            MpiCallType::Send=>register_send(call.current_rank, *call.partner_rank ,call.nb_bytes , call.comm , call.tag , call.tsc , call.duration),
+
+            MpiCallType::Isend=>register_isend(call.current_rank, *call.partner_rank, call.nb_bytes, call.comm, call.req, call.tag, call.tsc, call.duration),
+
+            MpiCallType::Recv=>register_recv(call.current_rank, *call.partner_rank, call.nb_bytes, call.comm, call.tag, call.tsc, call.duration),
+
+            MpiCallType::Irecv=>register_irecv(call.current_rank, *call.partner_rank, call.nb_bytes, call.comm, call.req, call.tag, call.tsc, call.duration),
+
+            MpiCallType::Wait=>register_wait(call.current_rank, call.req, call.tsc, call.duration),
+
+            MpiCallType::Test=>register_test(call.current_rank, call.req, call.finished, call.tsc, call.duration),
+
+            MpiCallType::Barrier=>register_barrier(call.current_rank, call.comm, call.tsc, call.duration),
+
+            //MpiCallType::Ibarrier=>register_ibarrier(),
+
+            //MpiCallType::Ibcast=>register_ibcast(),
+
+            //MpiCallType::Ireduce=>register_ireduce(),
+
+            //MpiCallType::Iscatter=>register_iscatter(),
+
+            //MpiCallType::Igather=>register_igather(),
+
+            _ => ()
+        }
+    }
+}
+
 /// Registers an `MPI_Init` call into a static vector.
 #[no_mangle]
-pub extern "C" fn register_init(current_rank: MpiRank, tsc: Tsc, time: Usecs) {
+pub fn register_init(current_rank: MpiRank, tsc: Tsc, time: Usecs) {
     let init_event = match MpiInitBuilder::default()
         .current_rank(current_rank)
         .tsc(tsc)
@@ -90,12 +168,12 @@ pub extern "C" fn register_init(current_rank: MpiRank, tsc: Tsc, time: Usecs) {
 
 /// Registers an `MPI_Init_thread` call into a static vector.
 #[no_mangle]
-pub extern "C" fn register_init_thread(
+pub fn register_init_thread(
     current_rank: MpiRank,
-    required_thread_lvl: i32,
-    provided_thread_lvl: i32,
     tsc: Tsc,
     time: Usecs,
+    required_thread_lvl: i32,
+    provided_thread_lvl: i32,
 ) {
     let init_thread_event = match MpiInitThreadBuilder::default()
         .current_rank(current_rank)
@@ -137,7 +215,7 @@ pub extern "C" fn register_init_thread(
 /// As this *should* be the final registered event, the contents of the vector will be sorted with
 /// every other MPI processes vectors' and then serialized.
 #[no_mangle]
-pub extern "C" fn register_finalize(current_rank: MpiRank, tsc: Tsc, time: Usecs) {
+pub fn register_finalize(current_rank: MpiRank, tsc: Tsc, time: Usecs) {
     let finalize_event = match MpiFinalizeBuilder::default()
         .current_rank(current_rank)
         .tsc(tsc)
@@ -173,7 +251,7 @@ pub extern "C" fn register_finalize(current_rank: MpiRank, tsc: Tsc, time: Usecs
     // Serialize the contents of the `Vec` and write them to an output file
     let ser_traces = serde_json::to_string_pretty(&*guard)
         .expect("failed to serialize vector contents to string");
-    let filename = format!("rank{}_traces.json", current_rank.to_string());
+    let filename = format!("/tmp/rank{}_traces.json", current_rank.to_string());
     let mut file = match File::create(filename.clone()) {
         Ok(file) => file,
         Err(err) => {
@@ -205,7 +283,7 @@ pub extern "C" fn register_finalize(current_rank: MpiRank, tsc: Tsc, time: Usecs
 
 /// Registers an `MPI_Send` call into a static vector.
 #[no_mangle]
-pub extern "C" fn register_send(
+pub fn register_send(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
@@ -254,7 +332,7 @@ pub extern "C" fn register_send(
 
 /// Registers an `MPI_Recv` call into a static vector.
 #[no_mangle]
-pub extern "C" fn register_recv(
+pub fn register_recv(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
@@ -303,7 +381,7 @@ pub extern "C" fn register_recv(
 
 /// Registers an `MPI_Isend` call into a static vector.
 #[no_mangle]
-pub extern "C" fn register_isend(
+pub fn register_isend(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
@@ -354,7 +432,7 @@ pub extern "C" fn register_isend(
 
 /// Registers an `MPI_Irecv` call into a static vector.
 #[no_mangle]
-pub extern "C" fn register_irecv(
+pub fn register_irecv(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
@@ -405,7 +483,7 @@ pub extern "C" fn register_irecv(
 
 /// Registers an `MPI_Barrier` call into a static vector.
 #[no_mangle]
-pub extern "C" fn register_barrier(current_rank: MpiRank, comm: MpiComm, tsc: Tsc, duration: Tsc) {
+pub fn register_barrier(current_rank: MpiRank, comm: MpiComm, tsc: Tsc, duration: Tsc) {
     let barrier_event = match MpiBarrierBuilder::default()
         .current_rank(current_rank)
         .comm(comm)
@@ -441,54 +519,9 @@ pub extern "C" fn register_barrier(current_rank: MpiRank, comm: MpiComm, tsc: Ts
     }
 }
 
-/// Registers an `MPI_Ibarrier` call into a static vector.
-#[no_mangle]
-pub extern "C" fn register_ibarrier(
-    current_rank: MpiRank,
-    comm: MpiComm,
-    req: MpiReq,
-    tsc: Tsc,
-    duration: Tsc,
-) {
-    let ibarrier_event = match MpiIbarrierBuilder::default()
-        .current_rank(current_rank)
-        .comm(comm)
-        .req(req)
-        .tsc(tsc)
-        .duration(duration)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiIbarrier` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
-
-    let mut guard = EVENTS
-        .0
-        .lock()
-        .expect("failed to take the lock on vector for `MpiIbarrier` event");
-    match ibarrier_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiIbarrier` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    }
-}
-
 /// Registers an `MPI_Test` call into a static vector.
 #[no_mangle]
-pub extern "C" fn register_test(
+pub fn register_test(
     current_rank: MpiRank,
     req: MpiReq,
     finished: bool,
@@ -533,7 +566,7 @@ pub extern "C" fn register_test(
 
 /// Registers an `MPI_Wait` call into a static vector.
 #[no_mangle]
-pub extern "C" fn register_wait(current_rank: MpiRank, req: MpiReq, tsc: Tsc, duration: Tsc) {
+pub fn register_wait(current_rank: MpiRank, req: MpiReq, tsc: Tsc, duration: Tsc) {
     let wait_event = match MpiWaitBuilder::default()
         .current_rank(current_rank)
         .req(req)
