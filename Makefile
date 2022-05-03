@@ -8,6 +8,17 @@ RS_SRC=interpol-rs/src
 RS_LIB=interpol-rs/target/release
 SRC=src
 
+
+SYNC=
+SYNC=SYNC
+CCVERBOSE=-D$(VERBOSE)
+
+VERBOSE=
+VERBOSE=VERBOSE
+CCSYNC=-D$(SYNC)
+
+CCOPTION = $(CCVERBOSE) $(CCSYNC)
+
 PWD=$(shell pwd)
 
 build: libinterpol.so
@@ -20,7 +31,7 @@ uninstall:
 	@rm /usr/lib/libinterpol.so /usr/lib/libinterpol_rs.so 
 
 libinterpol.so: $(RS_LIB)/libinterpol_rs.so $(INCLUDE)/tsc.h $(SRC)/interpol.c $(INCLUDE)/interpol.h
-	$(CC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpol.c -o $@ -linterpol_rs
+	$(CC) $(CFLAGS) $(CCOPTION) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpol.c -o $@ -linterpol_rs
 
 $(RS_LIB)/libinterpol_rs.so: $(RS_SRC)/*.rs
 	@cd interpol-rs/ && cargo build --release

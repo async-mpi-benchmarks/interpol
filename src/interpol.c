@@ -17,6 +17,7 @@ int MPI_Init(int* argc, char*** argv)
 {
     // Measure the current time and TSC.
     struct timeval timeofday;
+
     gettimeofday(&timeofday, NULL);
     Tsc const tsc = fenced_rdtscp();
     double const time = timeofday.tv_sec + timeofday.tv_usec / 1e6;
@@ -27,6 +28,39 @@ int MPI_Init(int* argc, char*** argv)
     PMPI_Comm_rank(MPI_COMM_WORLD, &current_rank);
 
     register_init(current_rank, tsc, time);
+
+// get the value of MPI_WTINE_IS_GLOBAL
+// if 1 : MPI_Wtime is synced between processes
+// if 0 : MPI_WTine is not synced between processes
+//
+#if VERBOSE
+    if (current_rank == 0){
+      void* attr_value;
+      int flag; 
+      MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_WTIME_IS_GLOBAL, &attr_value, &flag) ;
+      if (flag){
+        int is_global = *(int*) attr_value;
+        if (is_global == 1){
+          printf("The WTime is synced between all ranks\n");
+        }
+        else{
+          printf("The WTime is not synced between ranks\n");
+        }
+      }
+    }
+#endif
+
+#if SYNC
+    PMPI_Barrier(MPI_COMM_WORLD) ; 
+    Tsc const tsc_sync = fenced_rdtscp() ; 
+#if VERBOSE
+printf("rdtscp fpr rank %d is %lu\n", current_rank, tsc_sync);
+#endif
+    register_init(current_rank, tsc_sync, time);
+#else
+    register_init(current_rank, tsc, time) ;
+#endif
+
     return ret;
 }
 
