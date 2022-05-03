@@ -52,7 +52,7 @@ int MPI_Init(int* argc, char*** argv)
 #endif
 
 #if SYNC
-    PMPI_Barrier(MPI_COMM_WORLD) ; 
+    PMPI_Barrier(MPI_COMM_WORLD) ;
     init_tsc = fenced_rdtscp() ;
     Tsc const tsc_sync = fenced_rdtscp() - init_tsc ; 
 #if VERBOSE
@@ -103,8 +103,10 @@ int MPI_Finalize()
     PMPI_Barrier(MPI_COMM_WORLD);
 #endif
 
+#if SYNC
+#else
     int ret = PMPI_Finalize();
-
+#endif
     // Measure the current time and TSC.
     struct timeval timeofday;
     gettimeofday(&timeofday, NULL);
@@ -114,6 +116,9 @@ int MPI_Finalize()
     double const time = timeofday.tv_sec + timeofday.tv_usec / 1e6;
 
     register_finalize(current_rank, tsc, time);
+  #if SYNC
+  int ret = PMPI_Finalize();
+#endif
     return ret;
 }
 
