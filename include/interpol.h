@@ -9,7 +9,19 @@
 #include <stdlib.h>
 
 
-typedef int32_t MpiRank;
+typedef enum call_type
+{
+    Init,
+    Initthread,
+    Finalize,
+    Send,
+    Isend,
+    Recv,
+    Irecv,
+    Wait,
+    Test,
+    Barrier,
+} call_type;
 
 typedef uint64_t Tsc;
 
@@ -17,9 +29,30 @@ typedef double Usecs;
 
 typedef int32_t MpiComm;
 
+typedef int32_t MpiReq;
+
+typedef int32_t MpiRank;
+
 typedef int32_t MpiTag;
 
-typedef int32_t MpiReq;
+typedef struct MpiCall
+{
+    enum call_type call;
+    Tsc tsc;
+    Tsc duration;
+    Usecs time;
+    uint32_t nb_bytes;
+    MpiComm comm;
+    MpiReq req;
+    MpiRank current_rank;
+    MpiRank *partner_rank;
+    MpiTag tag;
+    int32_t required_thread_lvl;
+    int32_t provided_thread_lvl;
+    bool finished;
+} MpiCall;
+
+void register_mpi_call(struct MpiCall call);
 
 /**
  * Registers an `MPI_Init` call into a static vector.
@@ -30,10 +63,10 @@ void register_init(MpiRank current_rank, Tsc tsc, Usecs time);
  * Registers an `MPI_Init_thread` call into a static vector.
  */
 void register_init_thread(MpiRank current_rank,
-                          int32_t required_thread_lvl,
-                          int32_t provided_thread_lvl,
                           Tsc tsc,
-                          Usecs time);
+                          Usecs time,
+                          int32_t required_thread_lvl,
+                          int32_t provided_thread_lvl);
 
 /**
  * Registers an `MPI_Finalize` call into a static vector.
@@ -98,15 +131,6 @@ void register_barrier(MpiRank current_rank,
                       MpiComm comm,
                       Tsc tsc,
                       Tsc duration);
-
-/**
- * Registers an `MPI_Ibarrier` call into a static vector.
- */
-void register_ibarrier(MpiRank current_rank,
-                       MpiComm comm,
-                       MpiReq req,
-                       Tsc tsc,
-                       Tsc duration);
 
 /**
  * Registers an `MPI_Test` call into a static vector.
