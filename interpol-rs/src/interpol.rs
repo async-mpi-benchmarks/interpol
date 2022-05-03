@@ -13,8 +13,7 @@ use crate::mpi_events::{
         mpi_send::MpiSendBuilder,
     },
     synchronization::{
-        mpi_barrier::MpiBarrierBuilder, mpi_ibarrier::MpiIbarrierBuilder, mpi_test::MpiTestBuilder,
-        mpi_wait::MpiWaitBuilder,
+        mpi_barrier::MpiBarrierBuilder, mpi_test::MpiTestBuilder, mpi_wait::MpiWaitBuilder,
     },
 };
 use crate::types::{MpiComm, MpiRank, MpiReq, MpiTag, Tsc, Usecs};
@@ -50,6 +49,70 @@ lazy_static! {
     /// large number of threads. Therefore, the contention on the `Mutex` should not impact the
     /// performance of the application and the blocking of threads will be kept to a minimum.
     static ref EVENTS: Trace = Trace(Mutex::new(Vec::new()));
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
+#[allow(dead_code)]
+enum call_type {
+    Init,
+    Initthread,
+    Finalize,
+    Send,
+    Isend,
+    Recv,
+    Irecv,
+    Wait,
+    Test,
+    Barrier,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
+pub struct MpiCall {
+    call: call_type,
+    tsc: Tsc,
+    duration: Tsc,
+    time: Usecs,
+    nb_bytes: u32,
+    comm: MpiComm,
+    req: MpiReq,
+    current_rank: MpiRank,
+    partner_rank: *mut MpiRank,
+    tag: MpiTag,
+    required_thread_lvl: i32,
+    provided_thread_lvl: i32,
+    finished: bool,
+}
+
+#[no_mangle]
+pub extern "C" fn register_mpi_call(call: MpiCall) {
+    unsafe
+    {
+        match call.call {
+            call_type::Init=>register_init(call.current_rank, call.tsc, call.time),
+
+            call_type::Initthread=>register_init_thread(call.current_rank, call.tsc, call.time, call.required_thread_lvl, call.provided_thread_lvl),
+
+            call_type::Finalize=>register_finalize(call.current_rank, call.tsc, call.time),
+
+            call_type::Send=>register_send(call.current_rank, *call.partner_rank ,call.nb_bytes , call.comm , call.tag , call.tsc , call.duration),
+
+            call_type::Isend=>register_isend(call.current_rank, *call.partner_rank, call.nb_bytes, call.comm, call.req, call.tag, call.tsc, call.duration),
+
+            call_type::Recv=>register_recv(call.current_rank, *call.partner_rank, call.nb_bytes, call.comm, call.tag, call.tsc, call.duration),
+
+            call_type::Irecv=>register_irecv(call.current_rank, *call.partner_rank, call.nb_bytes, call.comm, call.req, call.tag, call.tsc, call.duration),
+
+            call_type::Wait=>register_wait(call.current_rank, call.req, call.tsc, call.duration),
+
+            call_type::Test=>register_test(call.current_rank, call.req, call.finished, call.tsc, call.duration),
+
+            call_type::Barrier=>register_barrier(call.current_rank, call.comm, call.tsc, call.duration),
+
+            _ => ()
+        }
+    }
 }
 
 /// Registers an `MPI_Init` call into a static vector.
@@ -92,10 +155,10 @@ pub extern "C" fn register_init(current_rank: MpiRank, tsc: Tsc, time: Usecs) {
 #[no_mangle]
 pub extern "C" fn register_init_thread(
     current_rank: MpiRank,
-    required_thread_lvl: i32,
-    provided_thread_lvl: i32,
     tsc: Tsc,
     time: Usecs,
+    required_thread_lvl: i32,
+    provided_thread_lvl: i32,
 ) {
     let init_thread_event = match MpiInitThreadBuilder::default()
         .current_rank(current_rank)
@@ -173,7 +236,7 @@ pub extern "C" fn register_finalize(current_rank: MpiRank, tsc: Tsc, time: Usecs
     // Serialize the contents of the `Vec` and write them to an output file
     let ser_traces = serde_json::to_string_pretty(&*guard)
         .expect("failed to serialize vector contents to string");
-    let filename = format!("rank{}_traces.json", current_rank.to_string());
+    let filename = format!("/tmp/rank{}_traces.json", current_rank.to_string());
     let mut file = match File::create(filename.clone()) {
         Ok(file) => file,
         Err(err) => {
@@ -434,51 +497,6 @@ pub extern "C" fn register_barrier(current_rank: MpiRank, comm: MpiComm, tsc: Ts
             print_err(
                 current_rank,
                 "failed to register `MpiBarrier` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    }
-}
-
-/// Registers an `MPI_Ibarrier` call into a static vector.
-#[no_mangle]
-pub extern "C" fn register_ibarrier(
-    current_rank: MpiRank,
-    comm: MpiComm,
-    req: MpiReq,
-    tsc: Tsc,
-    duration: Tsc,
-) {
-    let ibarrier_event = match MpiIbarrierBuilder::default()
-        .current_rank(current_rank)
-        .comm(comm)
-        .req(req)
-        .tsc(tsc)
-        .duration(duration)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiIbarrier` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
-
-    let mut guard = EVENTS
-        .0
-        .lock()
-        .expect("failed to take the lock on vector for `MpiIbarrier` event");
-    match ibarrier_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiIbarrier` event",
                 format!("{err}").as_str(),
             );
             return;
