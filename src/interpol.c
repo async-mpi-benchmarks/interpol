@@ -8,7 +8,9 @@
 
 /// Global variable that stores the rank of the current process.
 static MpiRank current_rank = -1;
-
+#if SYNC
+Tsc init_tsc;
+#endif
 /** ------------------------------------------------------------------------ **
  * Management functions.                                                      *
  ** ------------------------------------------------------------------------ **/
@@ -27,7 +29,6 @@ int MPI_Init(int* argc, char*** argv)
     // Set the rank of the current MPI process/thread
     PMPI_Comm_rank(MPI_COMM_WORLD, &current_rank);
 
-    register_init(current_rank, tsc, time);
 
 // get the value of MPI_WTINE_IS_GLOBAL
 // if 1 : MPI_Wtime is synced between processes
@@ -52,13 +53,15 @@ int MPI_Init(int* argc, char*** argv)
 
 #if SYNC
     PMPI_Barrier(MPI_COMM_WORLD) ; 
-    Tsc const tsc_sync = fenced_rdtscp() ; 
+    init_tsc = fenced_rdtscp() ;
+    Tsc const tsc_sync = fenced_rdtscp() - init_tsc ; 
 #if VERBOSE
 printf("rdtscp fpr rank %d is %lu\n", current_rank, tsc_sync);
 #endif
     register_init(current_rank, tsc_sync, time);
 #else
     register_init(current_rank, tsc, time) ;
+    init_tsc = 0 ; 
 #endif
 
     return ret;
@@ -79,13 +82,15 @@ int MPI_Init_thread(int* argc, char*** argv, int required, int* provided)
 
 #if SYNC
     PMPI_Barrier(MPI_COMM_WORLD) ; 
-    Tsc const tsc_sync = fenced_rdtscp() ; 
+    init_tsc = fenced_rdtscp();
+    Tsc const tsc_sync = fenced_rdtscp() - init_tsc; 
 #if VERBOSE
     printf("rdtscp fpr rank %d is %lu\n", current_rank, tsc_sync);
 #endif
     register_init_thread(current_rank, required, *provided, tsc_sync, time);
 #else
     register_init_thread(current_rank, required, *provided, tsc, time) ;
+    init_tsc = 0 ;
 #endif
 
     return ret;
@@ -103,7 +108,9 @@ int MPI_Finalize()
     // Measure the current time and TSC.
     struct timeval timeofday;
     gettimeofday(&timeofday, NULL);
-    Tsc const tsc = fenced_rdtscp();
+
+    Tsc const tsc = fenced_rdtscp() - init_tsc;
+
     double const time = timeofday.tv_sec + timeofday.tv_usec / 1e6;
 
     register_finalize(current_rank, tsc, time);
@@ -126,7 +133,7 @@ int MPI_Send(const void* buf, int count, MPI_Datatype datatype, int dest,
     nb_bytes *= count;
     MpiComm const comm_f = PMPI_Comm_c2f(comm);
 
-    register_send(current_rank, dest, (uint32_t)nb_bytes, comm_f, tag, tsc, duration);
+    register_send(current_rank, dest, (uint32_t)nb_bytes, comm_f, tag, tsc - init_tsc, duration);
     return ret;
 }
 
@@ -142,7 +149,7 @@ int MPI_Recv(void* buf, int count, MPI_Datatype datatype, int source, int tag,
     nb_bytes *= count;
     MpiComm const comm_f = PMPI_Comm_c2f(comm);
 
-    register_recv(current_rank, source, (uint32_t)nb_bytes, comm_f, tag, tsc, duration);
+    register_recv(current_rank, source, (uint32_t)nb_bytes, comm_f, tag, tsc - init_tsc, duration);
     return ret;
 }
 
@@ -159,7 +166,7 @@ int MPI_Isend(const void* buf, int count, MPI_Datatype datatype, int dest,
     MpiComm const comm_f = PMPI_Comm_c2f(comm);
     MpiReq const req_f = PMPI_Request_c2f(*request);
 
-    register_isend(current_rank, dest, (uint32_t)nb_bytes, comm_f, req_f, tag, tsc,
+    register_isend(current_rank, dest, (uint32_t)nb_bytes, comm_f, req_f, tag, tsc - init_tsc,
                    duration);
     return ret;
 }
@@ -177,7 +184,7 @@ int MPI_Irecv(void* buf, int count, MPI_Datatype datatype, int source, int tag,
     MpiComm const comm_f = PMPI_Comm_c2f(comm);
     MpiReq const req_f = PMPI_Request_c2f(*request);
 
-    register_irecv(current_rank, source, (uint32_t)nb_bytes, comm_f, req_f, tag, tsc,
+    register_irecv(current_rank, source, (uint32_t)nb_bytes, comm_f, req_f, tag, tsc - init_tsc,
                    duration);
     return ret;
 }
@@ -194,7 +201,7 @@ int MPI_Barrier(MPI_Comm comm)
 
     MpiComm const comm_f = PMPI_Comm_c2f(comm);
 
-    register_barrier(current_rank, comm_f, tsc, duration);
+    register_barrier(current_rank, comm_f, tsc - init_tsc, duration);
     return ret;
 }
 
@@ -207,7 +214,7 @@ int MPI_Ibarrier(MPI_Comm comm, MPI_Request* request)
     MpiComm const comm_f = PMPI_Comm_c2f(comm);
     MpiReq const req_f = PMPI_Request_c2f(*request);
 
-    register_ibarrier(current_rank, comm_f, req_f, tsc, duration);
+    register_ibarrier(current_rank, comm_f, req_f, tsc - init_tsc, duration);
     return ret;
 }
 
@@ -220,7 +227,7 @@ int MPI_Test(MPI_Request* request, int* flag, MPI_Status* status)
     MpiReq const req_f = PMPI_Request_c2f(*request);
     bool const finished = flag != 0 ? true : false;
 
-    register_test(current_rank, req_f, finished, tsc, duration);
+    register_test(current_rank, req_f, finished, tsc - init_tsc, duration);
     return ret;
 }
 
@@ -232,7 +239,7 @@ int MPI_Wait(MPI_Request* request, MPI_Status* status)
 
     MpiReq const req_f = PMPI_Request_c2f(*request);
 
-    register_wait(current_rank, req_f, tsc, duration);
+    register_wait(current_rank, req_f, tsc - init_tsc, duration);
     return ret;
 }
 
