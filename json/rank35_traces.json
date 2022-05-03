@@ -1,0 +1,78 @@
+[
+  {
+    "type": "MpiInit",
+    "current_rank": 35,
+    "tsc": 42094201223670,
+    "time": 1651583408.841829
+  },
+  {
+    "type": "MpiSend",
+    "current_rank": 35,
+    "partner_rank": 0,
+    "nb_bytes": 198288,
+    "comm": 1140850688,
+    "tag": 0,
+    "tsc": 42095435372470,
+    "duration": 131872616
+  },
+  {
+    "type": "MpiBarrier",
+    "current_rank": 35,
+    "comm": 1140850688,
+    "tsc": 42095567249342,
+    "duration": 251238444
+  },
+  {
+    "type": "MpiSend",
+    "current_rank": 35,
+    "partner_rank": 36,
+    "nb_bytes": 11520,
+    "comm": 1140850688,
+    "tag": 0,
+    "tsc": 42095818762830,
+    "duration": 43178830
+  },
+  {
+    "type": "MpiRecv",
+    "current_rank": 35,
+    "partner_rank": 34,
+    "nb_bytes": 11520,
+    "comm": 1140850688,
+    "tag": 0,
+    "tsc": 42095861943864,
+    "duration": 20368
+  },
+  {
+    "type": "MpiSend",
+    "current_rank": 35,
+    "partner_rank": 34,
+    "nb_bytes": 11520,
+    "comm": 1140850688,
+    "tag": 0,
+    "tsc": 42095861965676,
+    "duration": 21736
+  },
+  {
+    "type": "MpiRecv",
+    "current_rank": 35,
+    "partner_rank": 36,
+    "nb_bytes": 11520,
+    "comm": 1140850688,
+    "tag": 0,
+    "tsc": 42095861988666,
+    "duration": 25384
+  },
+  {
+    "type": "MpiBarrier",
+    "current_rank": 35,
+    "comm": 1140850688,
+    "tsc": 42095898207720,
+    "duration": 910556
+  },
+  {
+    "type": "MpiFinalize",
+    "current_rank": 35,
+    "tsc": 42095907831600,
+    "time": 1651583409.290935
+  }
+]
