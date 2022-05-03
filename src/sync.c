@@ -70,7 +70,7 @@ int main(int argc, char **argv){
 
 // malloc of file 
 
-FILE* files = malloc( number_of_ranks * sizeof(FILE*) ) ; 
+FILE** files = malloc( number_of_ranks * sizeof(FILE*) ) ; 
 char **filename = malloc( number_of_ranks * sizeof(char**)) ; 
 for (int i = 0 ; i < number_of_ranks; i++){
   filename[i] = (char*)malloc( LEN_BUFFER * sizeof(char*)) ; 
@@ -87,15 +87,14 @@ for (int i = 0 ; i < number_of_ranks; i++){
   strncpy(filename[i] + position, str_number, size_number) ; 
   strncpy(filename[i] + position + size_number, str_input + position + 1 , occ -1  - position) ; 
   printf("File : %s\n", filename[i]) ; 
-  
-
-  // 
+}
 
 
-
-
+for (int i = 0 ; i < number_of_ranks ; i++){
+  files[i] = fopen(filename[i], "rw") ; 
 
 }
+
 
 
 for (i = 0 ; i < number_of_ranks ; i++){
