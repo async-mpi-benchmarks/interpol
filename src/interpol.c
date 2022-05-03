@@ -77,7 +77,17 @@ int MPI_Init_thread(int* argc, char*** argv, int required, int* provided)
     // Set the rank of the current MPI process/thread
     PMPI_Comm_rank(MPI_COMM_WORLD, &current_rank);
 
-    register_init_thread(current_rank, required, *provided, tsc, time);
+#if SYNC
+    PMPI_Barrier(MPI_COMM_WORLD) ; 
+    Tsc const tsc_sync = fenced_rdtscp() ; 
+#if VERBOSE
+    printf("rdtscp fpr rank %d is %lu\n", current_rank, tsc_sync);
+#endif
+    register_init_thread(current_rank, required, *provided, tsc_sync, time);
+#else
+    register_init_thread(current_rank, required, *provided, tsc, time) ;
+#endif
+
     return ret;
 }
 
