@@ -83,6 +83,11 @@ int MPI_Init_thread(int* argc, char*** argv, int required, int* provided)
 
 int MPI_Finalize()
 {
+
+#if SYNC
+    PMPI_Barrier(MPI_COMM_WORLD);
+#endif
+
     int ret = PMPI_Finalize();
 
     // Measure the current time and TSC.
