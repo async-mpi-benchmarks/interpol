@@ -21,7 +21,6 @@ Currently, the library redefines the following **MPI** functions:
 - `MPI_Iscatter`.
 
 At the moment, **Interpol Trace Analyzer** only support the `MPI_COMM_WORLD` communicator (support for user-defined communicators is planned in the future).
-Although only `MPI_Init` has been redefined, the library is thread-safe.
 
 Currently, the library has been tested with the following MPI implementations:
 - [OpenMPI](https://www.open-mpi.org/);
