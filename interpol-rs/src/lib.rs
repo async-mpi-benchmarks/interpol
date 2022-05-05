@@ -22,9 +22,9 @@ impl std::fmt::Display for InterpolError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let err_msg = match self.kind {
             InterpolErrorKind::Io => format!("I/O error: {}", self.reason),
-            InterpolErrorKind::TryReserve => format!("TryReserve error: {}", self.reason),
-            InterpolErrorKind::Io => format!("DeriveBuilder error: {}", self.reason),
-            _ => String::from("Unknown error kind"),
+            InterpolErrorKind::TryReserve => format!("Memory allocation error: {}", self.reason),
+            InterpolErrorKind::DeriveBuilder => format!("Builder error: {}", self.reason),
+            // _ => String::from("Unknown error kind"),
         };
 
         write!(f, "{err_msg}")

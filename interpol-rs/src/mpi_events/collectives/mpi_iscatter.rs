@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Builder, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MpiIscatter {
     current_rank: MpiRank,
-    root_rank: MpiRank,
+    partner_rank: MpiRank,
     nb_bytes_send: u32,
     nb_bytes_recv: u32,
     comm: MpiComm,
@@ -31,7 +31,7 @@ impl MpiIscatter {
     /// Creates a new `MpiIscatter` structure from the specified parameters.
     pub fn new(
         current_rank: MpiRank,
-        root_rank: MpiRank,
+        partner_rank: MpiRank,
         nb_bytes_send: u32,
         nb_bytes_recv: u32,
         comm: MpiComm,
@@ -41,7 +41,7 @@ impl MpiIscatter {
     ) -> Self {
         MpiIscatter {
             current_rank,
-            root_rank,
+            partner_rank,
             nb_bytes_send,
             nb_bytes_recv,
             comm,
@@ -65,7 +65,7 @@ mod tests {
         let iscatter_new = MpiIscatter::new(0, 1, 8, 0, MPI_COMM_WORLD, 7, 1024, 2048);
         let iscatter_builder = MpiIscatterBuilder::default()
             .current_rank(0)
-            .root_rank(1)
+            .partner_rank(1)
             .nb_bytes_send(8)
             .nb_bytes_recv(0)
             .comm(MPI_COMM_WORLD)
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn serializes() {
         let iscatter = MpiIscatter::new(0, 0, 8, 64, MPI_COMM_WORLD, 7, 1024, 2048);
-        let json = String::from("{\"current_rank\":0,\"root_rank\":0,\"nb_bytes_send\":8,\"nb_bytes_recv\":64,\"comm\":0,\"req\":7,\"tsc\":1024,\"duration\":2048}");
+        let json = String::from("{\"current_rank\":0,\"partner_rank\":0,\"nb_bytes_send\":8,\"nb_bytes_recv\":64,\"comm\":0,\"req\":7,\"tsc\":1024,\"duration\":2048}");
         let serialized =
             serde_json::to_string(&iscatter).expect("failed to serialize `MpiIscatter`");
 
@@ -92,7 +92,7 @@ mod tests {
     fn deserializes() {
         let iscatter = MpiIscatterBuilder::default()
             .current_rank(1)
-            .root_rank(0)
+            .partner_rank(0)
             .nb_bytes_send(64)
             .nb_bytes_recv(0)
             .comm(MPI_COMM_WORLD)

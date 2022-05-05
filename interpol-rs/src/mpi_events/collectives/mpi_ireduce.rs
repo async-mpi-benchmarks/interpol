@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Builder, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MpiIreduce {
     current_rank: MpiRank,
-    root_rank: MpiRank,
+    partner_rank: MpiRank,
     nb_bytes: u32,
     op_type: i8,
     comm: MpiComm,
@@ -31,7 +31,7 @@ impl MpiIreduce {
     /// Creates a new `MpiIreduce` structure from the specified parameters.
     pub fn new(
         current_rank: MpiRank,
-        root_rank: MpiRank,
+        partner_rank: MpiRank,
         nb_bytes: u32,
         op_type: i8,
         comm: MpiComm,
@@ -41,7 +41,7 @@ impl MpiIreduce {
     ) -> Self {
         MpiIreduce {
             current_rank,
-            root_rank,
+            partner_rank,
             nb_bytes,
             op_type,
             comm,
@@ -72,7 +72,7 @@ mod tests {
             MpiIreduce::new(0, 1, 8, MpiOpType::Sum as i8, MPI_COMM_WORLD, 7, 1024, 2048);
         let ireduce_builder = MpiIreduceBuilder::default()
             .current_rank(0)
-            .root_rank(1)
+            .partner_rank(1)
             .nb_bytes(8)
             .op_type(MpiOpType::Sum as i8)
             .comm(MPI_COMM_WORLD)
@@ -97,7 +97,7 @@ mod tests {
             1024,
             2048,
         );
-        let json = String::from("{\"current_rank\":0,\"root_rank\":0,\"nb_bytes\":8,\"op_type\":2,\"comm\":0,\"req\":7,\"tsc\":1024,\"duration\":2048}");
+        let json = String::from("{\"current_rank\":0,\"partner_rank\":0,\"nb_bytes\":8,\"op_type\":2,\"comm\":0,\"req\":7,\"tsc\":1024,\"duration\":2048}");
         let serialized = serde_json::to_string(&ireduce).expect("failed to serialize `MpiIreduce`");
 
         assert_eq!(json, serialized);
@@ -107,7 +107,7 @@ mod tests {
     fn deserializes() {
         let ireduce = MpiIreduceBuilder::default()
             .current_rank(1)
-            .root_rank(0)
+            .partner_rank(0)
             .nb_bytes(8)
             .op_type(MpiOpType::Max as i8)
             .comm(MPI_COMM_WORLD)

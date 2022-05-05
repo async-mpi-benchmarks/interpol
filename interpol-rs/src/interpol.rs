@@ -545,7 +545,7 @@ fn register_wait(
 
 fn register_ibcast(
     current_rank: MpiRank,
-    root_rank: MpiRank,
+    partner_rank: MpiRank,
     nb_bytes: u32,
     comm: MpiComm,
     req: MpiReq,
@@ -554,7 +554,7 @@ fn register_ibcast(
 ) -> Result<(), InterpolError> {
     let ibcast_event = MpiIbcastBuilder::default()
         .current_rank(current_rank)
-        .root_rank(root_rank)
+        .partner_rank(partner_rank)
         .nb_bytes(nb_bytes)
         .comm(comm)
         .req(req)
@@ -572,7 +572,7 @@ fn register_ibcast(
 
 fn register_igather(
     current_rank: MpiRank,
-    root_rank: MpiRank,
+    partner_rank: MpiRank,
     nb_bytes_send: u32,
     nb_bytes_recv: u32,
     comm: MpiComm,
@@ -582,7 +582,7 @@ fn register_igather(
 ) -> Result<(), InterpolError> {
     let igather_event = MpiIgatherBuilder::default()
         .current_rank(current_rank)
-        .root_rank(root_rank)
+        .partner_rank(partner_rank)
         .nb_bytes_send(nb_bytes_send)
         .nb_bytes_recv(nb_bytes_recv)
         .comm(comm)
@@ -601,7 +601,7 @@ fn register_igather(
 
 fn register_ireduce(
     current_rank: MpiRank,
-    root_rank: MpiRank,
+    partner_rank: MpiRank,
     nb_bytes: u32,
     op_type: i8,
     comm: MpiComm,
@@ -611,7 +611,7 @@ fn register_ireduce(
 ) -> Result<(), InterpolError> {
     let ireduce_event = MpiIreduceBuilder::default()
         .current_rank(current_rank)
-        .root_rank(root_rank)
+        .partner_rank(partner_rank)
         .nb_bytes(nb_bytes)
         .op_type(op_type)
         .comm(comm)
@@ -630,7 +630,7 @@ fn register_ireduce(
 
 fn register_iscatter(
     current_rank: MpiRank,
-    root_rank: MpiRank,
+    partner_rank: MpiRank,
     nb_bytes_send: u32,
     nb_bytes_recv: u32,
     comm: MpiComm,
@@ -640,7 +640,7 @@ fn register_iscatter(
 ) -> Result<(), InterpolError> {
     let iscatter_event = MpiIscatterBuilder::default()
         .current_rank(current_rank)
-        .root_rank(root_rank)
+        .partner_rank(partner_rank)
         .nb_bytes_send(nb_bytes_send)
         .nb_bytes_recv(nb_bytes_recv)
         .comm(comm)
@@ -667,7 +667,7 @@ pub extern "C" fn sort_all_traces() {
     let start = std::time::Instant::now();
     all_traces.par_sort_unstable_by_key(|event| event.tsc());
     let end = start.elapsed();
-    println!("Sort took {end:?}");
+    eprintln!("Sort took {end:?}");
 
     let serialized_traces =
         serde_json::to_string_pretty(&all_traces).expect("failed to serialize all traces");
