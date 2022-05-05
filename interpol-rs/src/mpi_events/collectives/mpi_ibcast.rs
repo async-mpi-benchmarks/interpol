@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Builder, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MpiIbcast {
     current_rank: MpiRank,
-    root_rank: MpiRank,
+    partner_rank: MpiRank,
     nb_bytes: u32,
     comm: MpiComm,
     req: MpiReq,
@@ -29,7 +29,7 @@ impl MpiIbcast {
     /// Creates a new `MpiIbcast` structure from the specified parameters.
     pub fn new(
         current_rank: MpiRank,
-        root_rank: MpiRank,
+        partner_rank: MpiRank,
         nb_bytes: u32,
         comm: MpiComm,
         req: MpiReq,
@@ -38,7 +38,7 @@ impl MpiIbcast {
     ) -> Self {
         MpiIbcast {
             current_rank,
-            root_rank,
+            partner_rank,
             nb_bytes,
             comm,
             req,
@@ -61,7 +61,7 @@ mod tests {
         let ibcast_new = MpiIbcast::new(0, 1, 8, MPI_COMM_WORLD, 7, 1024, 2048);
         let ibcast_builder = MpiIbcastBuilder::default()
             .current_rank(0)
-            .root_rank(1)
+            .partner_rank(1)
             .nb_bytes(8)
             .comm(MPI_COMM_WORLD)
             .req(7)
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn serializes() {
         let ibcast = MpiIbcast::new(0, 0, 8, MPI_COMM_WORLD, 7, 1024, 2048);
-        let json = String::from("{\"current_rank\":0,\"root_rank\":0,\"nb_bytes\":8,\"comm\":0,\"req\":7,\"tsc\":1024,\"duration\":2048}");
+        let json = String::from("{\"current_rank\":0,\"partner_rank\":0,\"nb_bytes\":8,\"comm\":0,\"req\":7,\"tsc\":1024,\"duration\":2048}");
         let serialized = serde_json::to_string(&ibcast).expect("failed to serialize `MpiIbcast`");
 
         assert_eq!(json, serialized);
@@ -86,7 +86,7 @@ mod tests {
     fn deserializes() {
         let ibcast = MpiIbcastBuilder::default()
             .current_rank(1)
-            .root_rank(0)
+            .partner_rank(0)
             .nb_bytes(8)
             .comm(MPI_COMM_WORLD)
             .req(7)
