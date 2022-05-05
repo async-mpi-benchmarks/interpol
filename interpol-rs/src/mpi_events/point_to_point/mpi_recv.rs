@@ -1,10 +1,9 @@
 use crate::{
-    interpol::Register,
+    impl_builder_error, impl_register,
     types::{MpiComm, MpiRank, MpiTag, Tsc},
 };
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use std::collections::TryReserveError;
 
 /// A structure that stores information about `MPI_Recv` calls.
 ///
@@ -51,15 +50,8 @@ impl MpiRecv {
     }
 }
 
-#[typetag::serde]
-impl Register for MpiRecv {
-    fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError> {
-        // Ensure that the program does not panic if allocation fails
-        events.try_reserve_exact(2 * events.len())?;
-        events.push(Box::new(self));
-        Ok(())
-    }
-}
+impl_builder_error!(MpiRecvBuilderError);
+impl_register!(MpiRecv);
 
 #[cfg(test)]
 mod tests {

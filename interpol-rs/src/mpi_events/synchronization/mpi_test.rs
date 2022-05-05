@@ -1,8 +1,7 @@
-use crate::interpol::Register;
+use crate::{impl_builder_error, impl_register};
 use crate::types::{MpiRank, MpiReq, Tsc};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use std::collections::TryReserveError;
 
 /// A structure that stores information about `MPI_Test` calls.
 ///
@@ -42,15 +41,8 @@ impl MpiTest {
     }
 }
 
-#[typetag::serde]
-impl Register for MpiTest {
-    fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError> {
-        // Ensure that the program does not panic if allocation fails
-        events.try_reserve_exact(2 * events.len())?;
-        events.push(Box::new(self));
-        Ok(())
-    }
-}
+impl_builder_error!(MpiTestBuilderError);
+impl_register!(MpiTest);
 
 #[cfg(test)]
 mod tests {

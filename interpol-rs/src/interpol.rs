@@ -1,9 +1,8 @@
-use lazy_static::lazy_static;
-use std::fs::File;
-use std::io::Write;
-use std::{collections::TryReserveError, sync::Mutex};
-
 use crate::mpi_events::{
+    collectives::{
+        mpi_ibcast::MpiIbcastBuilder, mpi_igather::MpiIgatherBuilder,
+        mpi_ireduce::MpiIreduceBuilder, mpi_iscatter::MpiIscatterBuilder,
+    },
     management::{
         mpi_finalize::MpiFinalizeBuilder, mpi_init::MpiInitBuilder,
         mpi_init_thread::MpiInitThreadBuilder,
@@ -13,17 +12,53 @@ use crate::mpi_events::{
         mpi_send::MpiSendBuilder,
     },
     synchronization::{
-        mpi_barrier::MpiBarrierBuilder, mpi_test::MpiTestBuilder, mpi_wait::MpiWaitBuilder,
+        mpi_barrier::MpiBarrierBuilder, mpi_ibarrier::MpiIbarrierBuilder, mpi_test::MpiTestBuilder,
+        mpi_wait::MpiWaitBuilder,
     },
 };
 use crate::types::{MpiComm, MpiRank, MpiReq, MpiTag, Tsc, Usecs};
+use crate::InterpolError;
+use lazy_static::lazy_static;
+use rayon::prelude::*;
+use std::fs::{self, File};
+use std::io::Write;
+use std::sync::Mutex;
+
+static INTERPOL_DIR: &str = "interpol-tmp";
 
 #[repr(transparent)]
 pub struct Trace(Mutex<Vec<Box<dyn Register>>>);
 
 #[typetag::serde(tag = "type")]
 pub trait Register: Send + Sync {
-    fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError>;
+    fn register(
+        self,
+        events: &mut Vec<Box<dyn Register>>,
+    ) -> Result<(), std::collections::TryReserveError>;
+
+    fn tsc(&self) -> Tsc;
+}
+
+#[macro_export]
+macro_rules! impl_register {
+    ($t:ty) => {
+        use crate::interpol::Register;
+        use std::collections::TryReserveError;
+
+        #[typetag::serde]
+        impl Register for $t {
+            fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError> {
+                // Ensure that the program does not panic if allocation fails
+                events.try_reserve_exact(2 * events.len())?;
+                events.push(Box::new(self));
+                Ok(())
+            }
+
+            fn tsc(&self) -> crate::types::Tsc {
+                self.tsc
+            }
+        }
+    };
 }
 
 lazy_static! {
@@ -51,239 +86,249 @@ lazy_static! {
     static ref EVENTS: Trace = Trace(Mutex::new(Vec::new()));
 }
 
-#[derive(Clone, Debug, PartialEq)]
-#[repr(C)]
-#[allow(dead_code)]
-enum MpiCallType {
+#[derive(Debug, PartialEq)]
+#[repr(i8)]
+pub enum MpiCallType {
     Init,
     Initthread,
     Finalize,
     Send,
-    Isend,
     Recv,
+    Isend,
     Irecv,
-    Wait,
     Test,
+    Wait,
     Barrier,
     Ibarrier,
-    Ibcast, 
-    Ireduce, 
+    Ibcast,
+    Igather,
+    Ireduce,
     Iscatter,
-    Igather
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[repr(C)]
 pub struct MpiCall {
-    call: MpiCallType,
+    time: Usecs,
     tsc: Tsc,
     duration: Tsc,
-    time: Usecs,
-    nb_bytes: u32,
+    partner_rank: MpiRank,
+    current_rank: MpiRank,
+    nb_bytes_s: u32,
+    nb_bytes_r: u32,
     comm: MpiComm,
     req: MpiReq,
-    current_rank: MpiRank,
-    partner_rank: *mut MpiRank,
     tag: MpiTag,
     required_thread_lvl: i32,
     provided_thread_lvl: i32,
     finished: bool,
+    op_type: i8,
+    kind: MpiCallType,
+}
+
+/// Serialize the contents of the `Vec` and write them to an output file
+fn serialize(
+    events: &mut Vec<Box<dyn Register>>,
+    current_rank: MpiRank,
+) -> Result<(), InterpolError> {
+    let ser_traces = serde_json::to_string_pretty(events)
+        .expect("failed to serialize vector contents to string");
+    let filename = format!(
+        "{}/rank{}_traces.json",
+        INTERPOL_DIR,
+        current_rank.to_string()
+    );
+
+    fs::create_dir_all(INTERPOL_DIR)?;
+    let mut file = File::create(filename.clone())?;
+    write!(file, "{}", ser_traces)?;
+    Ok(())
 }
 
 #[no_mangle]
-pub extern "C" fn register_mpi_call(call: MpiCall) {
-    unsafe
-    {
-        match call.call {
-            MpiCallType::Init=>register_init(call.current_rank, call.tsc, call.time),
+pub extern "C" fn register_mpi_call(mpi_call: MpiCall) {
+    let rank = mpi_call.current_rank;
+    match dispatch(mpi_call) {
+        Ok(_) => (),
+        Err(e) => eprintln!("Rank {}: {e}", rank),
+    }
+}
 
-            MpiCallType::Initthread=>register_init_thread(call.current_rank, call.tsc, call.time, call.required_thread_lvl, call.provided_thread_lvl),
-
-            MpiCallType::Finalize=>register_finalize(call.current_rank, call.tsc, call.time),
-
-            MpiCallType::Send=>register_send(call.current_rank, *call.partner_rank ,call.nb_bytes , call.comm , call.tag , call.tsc , call.duration),
-
-            MpiCallType::Isend=>register_isend(call.current_rank, *call.partner_rank, call.nb_bytes, call.comm, call.req, call.tag, call.tsc, call.duration),
-
-            MpiCallType::Recv=>register_recv(call.current_rank, *call.partner_rank, call.nb_bytes, call.comm, call.tag, call.tsc, call.duration),
-
-            MpiCallType::Irecv=>register_irecv(call.current_rank, *call.partner_rank, call.nb_bytes, call.comm, call.req, call.tag, call.tsc, call.duration),
-
-            MpiCallType::Wait=>register_wait(call.current_rank, call.req, call.tsc, call.duration),
-
-            MpiCallType::Test=>register_test(call.current_rank, call.req, call.finished, call.tsc, call.duration),
-
-            MpiCallType::Barrier=>register_barrier(call.current_rank, call.comm, call.tsc, call.duration),
-
-            //MpiCallType::Ibarrier=>register_ibarrier(),
-
-            //MpiCallType::Ibcast=>register_ibcast(),
-
-            //MpiCallType::Ireduce=>register_ireduce(),
-
-            //MpiCallType::Iscatter=>register_iscatter(),
-
-            //MpiCallType::Igather=>register_igather(),
-
-            _ => ()
+fn dispatch(call: MpiCall) -> Result<(), InterpolError> {
+    match call.kind {
+        MpiCallType::Init => register_init(call.current_rank, call.tsc, call.time),
+        MpiCallType::Initthread => register_init_thread(
+            call.current_rank,
+            call.required_thread_lvl,
+            call.provided_thread_lvl,
+            call.tsc,
+            call.time,
+        ),
+        MpiCallType::Finalize => register_finalize(call.current_rank, call.tsc, call.time),
+        MpiCallType::Send => register_send(
+            call.current_rank,
+            call.partner_rank,
+            call.nb_bytes_s,
+            call.comm,
+            call.tag,
+            call.tsc,
+            call.duration,
+        ),
+        MpiCallType::Isend => register_isend(
+            call.current_rank,
+            call.partner_rank,
+            call.nb_bytes_s,
+            call.comm,
+            call.req,
+            call.tag,
+            call.tsc,
+            call.duration,
+        ),
+        MpiCallType::Recv => register_recv(
+            call.current_rank,
+            call.partner_rank,
+            call.nb_bytes_r,
+            call.comm,
+            call.tag,
+            call.tsc,
+            call.duration,
+        ),
+        MpiCallType::Irecv => register_irecv(
+            call.current_rank,
+            call.partner_rank,
+            call.nb_bytes_r,
+            call.comm,
+            call.req,
+            call.tag,
+            call.tsc,
+            call.duration,
+        ),
+        MpiCallType::Barrier => {
+            register_barrier(call.current_rank, call.comm, call.tsc, call.duration)
         }
+        MpiCallType::Ibarrier => register_ibarrier(
+            call.current_rank,
+            call.comm,
+            call.req,
+            call.tsc,
+            call.duration,
+        ),
+        MpiCallType::Test => register_test(
+            call.current_rank,
+            call.req,
+            call.finished,
+            call.tsc,
+            call.duration,
+        ),
+        MpiCallType::Wait => register_wait(call.current_rank, call.req, call.tsc, call.duration),
+        MpiCallType::Ibcast => register_ibcast(
+            call.current_rank,
+            call.partner_rank,
+            call.nb_bytes_s,
+            call.comm,
+            call.req,
+            call.tsc,
+            call.duration,
+        ),
+        MpiCallType::Igather => register_igather(
+            call.current_rank,
+            call.partner_rank,
+            call.nb_bytes_s,
+            call.nb_bytes_r,
+            call.comm,
+            call.req,
+            call.tsc,
+            call.duration,
+        ),
+        MpiCallType::Ireduce => register_ireduce(
+            call.current_rank,
+            call.partner_rank,
+            call.nb_bytes_s,
+            call.op_type,
+            call.comm,
+            call.req,
+            call.tsc,
+            call.duration,
+        ),
+        MpiCallType::Iscatter => register_iscatter(
+            call.current_rank,
+            call.partner_rank,
+            call.nb_bytes_s,
+            call.nb_bytes_r,
+            call.comm,
+            call.req,
+            call.tsc,
+            call.duration,
+        ),
     }
 }
 
 /// Registers an `MPI_Init` call into a static vector.
-#[no_mangle]
-pub fn register_init(current_rank: MpiRank, tsc: Tsc, time: Usecs) {
-    let init_event = match MpiInitBuilder::default()
+fn register_init(current_rank: MpiRank, tsc: Tsc, time: Usecs) -> Result<(), InterpolError> {
+    let init_event = MpiInitBuilder::default()
         .current_rank(current_rank)
         .tsc(tsc)
         .time(time)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiInit` event",
-                format!("{err:#?}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiInit` event");
-    match init_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiInit` event",
-                format!("{err}").as_str(),
-            );
-        }
-    }
+    init_event.register(&mut guard)?;
+
+    Ok(())
 }
 
 /// Registers an `MPI_Init_thread` call into a static vector.
-#[no_mangle]
-pub fn register_init_thread(
+fn register_init_thread(
     current_rank: MpiRank,
-    tsc: Tsc,
-    time: Usecs,
     required_thread_lvl: i32,
     provided_thread_lvl: i32,
-) {
-    let init_thread_event = match MpiInitThreadBuilder::default()
+    tsc: Tsc,
+    time: Usecs,
+) -> Result<(), InterpolError> {
+    let init_thread_event = MpiInitThreadBuilder::default()
         .current_rank(current_rank)
         .required_thread_lvl(required_thread_lvl)
         .provided_thread_lvl(provided_thread_lvl)
         .tsc(tsc)
         .time(time)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiInitThread` event",
-                format!("{err:#?}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiInitThread` event");
-    match init_thread_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiInitThread` event",
-                format!("{err}").as_str(),
-            );
-        }
-    }
+    init_thread_event.register(&mut guard)?;
+
+    Ok(())
 }
 
 /// Registers an `MPI_Finalize` call into a static vector.
 ///
 /// As this *should* be the final registered event, the contents of the vector will be sorted with
 /// every other MPI processes vectors' and then serialized.
-#[no_mangle]
-pub fn register_finalize(current_rank: MpiRank, tsc: Tsc, time: Usecs) {
-    let finalize_event = match MpiFinalizeBuilder::default()
+fn register_finalize(current_rank: MpiRank, tsc: Tsc, time: Usecs) -> Result<(), InterpolError> {
+    let finalize_event = MpiFinalizeBuilder::default()
         .current_rank(current_rank)
         .tsc(tsc)
         .time(time)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiFinalize` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiFinalize` event");
-    match finalize_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiFinalize` event",
-                format!("{err}").as_str(),
-            );
-        }
-    }
+    finalize_event.register(&mut guard)?;
 
-    // Serialize the contents of the `Vec` and write them to an output file
-    let ser_traces = serde_json::to_string_pretty(&*guard)
-        .expect("failed to serialize vector contents to string");
-    let filename = format!("/tmp/rank{}_traces.json", current_rank.to_string());
-    let mut file = match File::create(filename.clone()) {
-        Ok(file) => file,
-        Err(err) => {
-            print_err(
-                current_rank,
-                format!("failed to create file `{}`", filename).as_str(),
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
-
-    match write!(file, "{}", ser_traces) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                format!("failed to write to file `{}`", filename).as_str(),
-                format!("{err}").as_str(),
-            );
-        }
-    };
-
-    if current_rank != 0 {
-        return;
-    }
-    // TODO: Deserialize every trace files, sort and serialize everything in order.
+    // Serialize all events of the current rank
+    serialize(&mut *guard, current_rank)?;
+    Ok(())
 }
 
 /// Registers an `MPI_Send` call into a static vector.
-#[no_mangle]
-pub fn register_send(
+fn register_send(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
@@ -291,8 +336,8 @@ pub fn register_send(
     tag: MpiTag,
     tsc: Tsc,
     duration: Tsc,
-) {
-    let send_event = match MpiSendBuilder::default()
+) -> Result<(), InterpolError> {
+    let send_event = MpiSendBuilder::default()
         .current_rank(current_rank)
         .partner_rank(partner_rank)
         .nb_bytes(nb_bytes)
@@ -300,39 +345,19 @@ pub fn register_send(
         .tag(tag)
         .tsc(tsc)
         .duration(duration)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiSend` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiSend` event");
-    match send_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiSend` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    }
+    send_event.register(&mut guard)?;
+
+    Ok(())
 }
 
 /// Registers an `MPI_Recv` call into a static vector.
-#[no_mangle]
-pub fn register_recv(
+fn register_recv(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
@@ -340,8 +365,8 @@ pub fn register_recv(
     tag: MpiTag,
     tsc: Tsc,
     duration: Tsc,
-) {
-    let recv_event = match MpiRecvBuilder::default()
+) -> Result<(), InterpolError> {
+    let recv_event = MpiRecvBuilder::default()
         .current_rank(current_rank)
         .partner_rank(partner_rank)
         .nb_bytes(nb_bytes)
@@ -349,39 +374,19 @@ pub fn register_recv(
         .tag(tag)
         .tsc(tsc)
         .duration(duration)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiRecv` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiRecv` event");
-    match recv_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiRecv` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    }
+    recv_event.register(&mut guard)?;
+
+    Ok(())
 }
 
 /// Registers an `MPI_Isend` call into a static vector.
-#[no_mangle]
-pub fn register_isend(
+fn register_isend(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
@@ -390,8 +395,8 @@ pub fn register_isend(
     tag: MpiTag,
     tsc: Tsc,
     duration: Tsc,
-) {
-    let isend_event = match MpiIsendBuilder::default()
+) -> Result<(), InterpolError> {
+    let isend_event = MpiIsendBuilder::default()
         .current_rank(current_rank)
         .partner_rank(partner_rank)
         .nb_bytes(nb_bytes)
@@ -400,39 +405,19 @@ pub fn register_isend(
         .tag(tag)
         .tsc(tsc)
         .duration(duration)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiIsend` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiIsend` event");
-    match isend_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiIsend` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    }
+    isend_event.register(&mut guard)?;
+
+    Ok(())
 }
 
 /// Registers an `MPI_Irecv` call into a static vector.
-#[no_mangle]
-pub fn register_irecv(
+fn register_irecv(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
@@ -441,8 +426,8 @@ pub fn register_irecv(
     tag: MpiTag,
     tsc: Tsc,
     duration: Tsc,
-) {
-    let irecv_event = match MpiIrecvBuilder::default()
+) -> Result<(), InterpolError> {
+    let irecv_event = MpiIrecvBuilder::default()
         .current_rank(current_rank)
         .partner_rank(partner_rank)
         .nb_bytes(nb_bytes)
@@ -451,163 +436,263 @@ pub fn register_irecv(
         .tag(tag)
         .tsc(tsc)
         .duration(duration)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiIrecv` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiIrecv` event");
-    match irecv_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiIrecv` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    }
+    irecv_event.register(&mut guard)?;
+
+    Ok(())
 }
 
 /// Registers an `MPI_Barrier` call into a static vector.
-#[no_mangle]
-pub fn register_barrier(current_rank: MpiRank, comm: MpiComm, tsc: Tsc, duration: Tsc) {
-    let barrier_event = match MpiBarrierBuilder::default()
+fn register_barrier(
+    current_rank: MpiRank,
+    comm: MpiComm,
+    tsc: Tsc,
+    duration: Tsc,
+) -> Result<(), InterpolError> {
+    let barrier_event = MpiBarrierBuilder::default()
         .current_rank(current_rank)
         .comm(comm)
         .tsc(tsc)
         .duration(duration)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiBarrier` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiBarrier` event");
-    match barrier_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiBarrier` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    }
+    barrier_event.register(&mut guard)?;
+
+    Ok(())
+}
+
+/// Registers an `MPI_Ibarrier` call into a static vector.
+fn register_ibarrier(
+    current_rank: MpiRank,
+    comm: MpiComm,
+    req: MpiReq,
+    tsc: Tsc,
+    duration: Tsc,
+) -> Result<(), InterpolError> {
+    let ibarrier_event = MpiIbarrierBuilder::default()
+        .current_rank(current_rank)
+        .comm(comm)
+        .req(req)
+        .tsc(tsc)
+        .duration(duration)
+        .build()?;
+
+    let mut guard = EVENTS
+        .0
+        .lock()
+        .expect("failed to take the lock on vector for `MpiIbarrier` event");
+    ibarrier_event.register(&mut guard)?;
+
+    Ok(())
 }
 
 /// Registers an `MPI_Test` call into a static vector.
-#[no_mangle]
-pub fn register_test(
+fn register_test(
     current_rank: MpiRank,
     req: MpiReq,
     finished: bool,
     tsc: Tsc,
     duration: Tsc,
-) {
-    let test_event = match MpiTestBuilder::default()
+) -> Result<(), InterpolError> {
+    let test_event = MpiTestBuilder::default()
         .current_rank(current_rank)
         .req(req)
         .finished(finished)
         .tsc(tsc)
         .duration(duration)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiTest` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiTest` event");
-    match test_event.register(&mut guard) {
-        Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiTest` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    }
+    test_event.register(&mut guard)?;
+
+    Ok(())
 }
 
 /// Registers an `MPI_Wait` call into a static vector.
-#[no_mangle]
-pub fn register_wait(current_rank: MpiRank, req: MpiReq, tsc: Tsc, duration: Tsc) {
-    let wait_event = match MpiWaitBuilder::default()
+fn register_wait(
+    current_rank: MpiRank,
+    req: MpiReq,
+    tsc: Tsc,
+    duration: Tsc,
+) -> Result<(), InterpolError> {
+    let wait_event = MpiWaitBuilder::default()
         .current_rank(current_rank)
         .req(req)
         .tsc(tsc)
         .duration(duration)
-        .build()
-    {
-        Ok(event) => event,
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to build `MpiWait` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
-    };
+        .build()?;
 
     let mut guard = EVENTS
         .0
         .lock()
         .expect("failed to take the lock on vector for `MpiWait` event");
-    match wait_event.register(&mut guard) {
+    wait_event.register(&mut guard)?;
+
+    Ok(())
+}
+
+fn register_ibcast(
+    current_rank: MpiRank,
+    root_rank: MpiRank,
+    nb_bytes: u32,
+    comm: MpiComm,
+    req: MpiReq,
+    tsc: Tsc,
+    duration: Tsc,
+) -> Result<(), InterpolError> {
+    let ibcast_event = MpiIbcastBuilder::default()
+        .current_rank(current_rank)
+        .root_rank(root_rank)
+        .nb_bytes(nb_bytes)
+        .comm(comm)
+        .req(req)
+        .tsc(tsc)
+        .duration(duration)
+        .build()?;
+
+    let mut guard = EVENTS
+        .0
+        .lock()
+        .expect("failed to take the lock on vector for `MpiIbcast` event");
+    ibcast_event.register(&mut guard)?;
+    Ok(())
+}
+
+fn register_igather(
+    current_rank: MpiRank,
+    root_rank: MpiRank,
+    nb_bytes_send: u32,
+    nb_bytes_recv: u32,
+    comm: MpiComm,
+    req: MpiReq,
+    tsc: Tsc,
+    duration: Tsc,
+) -> Result<(), InterpolError> {
+    let igather_event = MpiIgatherBuilder::default()
+        .current_rank(current_rank)
+        .root_rank(root_rank)
+        .nb_bytes_send(nb_bytes_send)
+        .nb_bytes_recv(nb_bytes_recv)
+        .comm(comm)
+        .req(req)
+        .tsc(tsc)
+        .duration(duration)
+        .build()?;
+
+    let mut guard = EVENTS
+        .0
+        .lock()
+        .expect("failed to take the lock on vector for `MpiIbcast` event");
+    igather_event.register(&mut guard)?;
+    Ok(())
+}
+
+fn register_ireduce(
+    current_rank: MpiRank,
+    root_rank: MpiRank,
+    nb_bytes: u32,
+    op_type: i8,
+    comm: MpiComm,
+    req: MpiReq,
+    tsc: Tsc,
+    duration: Tsc,
+) -> Result<(), InterpolError> {
+    let ireduce_event = MpiIreduceBuilder::default()
+        .current_rank(current_rank)
+        .root_rank(root_rank)
+        .nb_bytes(nb_bytes)
+        .op_type(op_type)
+        .comm(comm)
+        .req(req)
+        .tsc(tsc)
+        .duration(duration)
+        .build()?;
+
+    let mut guard = EVENTS
+        .0
+        .lock()
+        .expect("failed to take the lock on vector for `MpiIbcast` event");
+    ireduce_event.register(&mut guard)?;
+    Ok(())
+}
+
+fn register_iscatter(
+    current_rank: MpiRank,
+    root_rank: MpiRank,
+    nb_bytes_send: u32,
+    nb_bytes_recv: u32,
+    comm: MpiComm,
+    req: MpiReq,
+    tsc: Tsc,
+    duration: Tsc,
+) -> Result<(), InterpolError> {
+    let iscatter_event = MpiIscatterBuilder::default()
+        .current_rank(current_rank)
+        .root_rank(root_rank)
+        .nb_bytes_send(nb_bytes_send)
+        .nb_bytes_recv(nb_bytes_recv)
+        .comm(comm)
+        .req(req)
+        .tsc(tsc)
+        .duration(duration)
+        .build()?;
+
+    let mut guard = EVENTS
+        .0
+        .lock()
+        .expect("failed to take the lock on vector for `MpiIbcast` event");
+    iscatter_event.register(&mut guard)?;
+    Ok(())
+}
+
+#[no_mangle]
+pub extern "C" fn sort_all_traces() {
+    let mut all_traces = match deserialize_all_traces() {
+        Ok(t) => t,
+        Err(e) => panic!("{e}"),
+    };
+
+    let start = std::time::Instant::now();
+    all_traces.par_sort_unstable_by_key(|event| event.tsc());
+    let end = start.elapsed();
+    println!("Sort took {end:?}");
+
+    let serialized_traces =
+        serde_json::to_string_pretty(&all_traces).expect("failed to serialize all traces");
+    match write_all_traces(serialized_traces) {
         Ok(_) => (),
-        Err(err) => {
-            print_err(
-                current_rank,
-                "failed to register `MpiWait` event",
-                format!("{err}").as_str(),
-            );
-            return;
-        }
+        Err(e) => eprintln!("{e}"),
     }
 }
 
-fn print_err(rank: MpiRank, err: &str, reason: &str) {
-    eprintln!(
-        "{} {} \n  {} {}",
-        format!("\x1b[1;31merror[rank {}]:\x1b[0m", rank.to_string()).as_str(),
-        format!("\x1b[1m{}\x1b[0m", err),
-        "\x1b[34m-->\x1b[0m",
-        reason
-    );
+fn deserialize_all_traces() -> Result<Vec<Box<dyn Register>>, InterpolError> {
+    let mut all_traces = Vec::new();
+
+    for entry in fs::read_dir(INTERPOL_DIR)? {
+        let dir = entry?;
+        let contents = fs::read_to_string(dir.path())?;
+        let mut deserialized: Vec<Box<dyn Register>> =
+            serde_json::from_str(&contents).expect("failed to deserialize trace file contents");
+        all_traces.append(&mut deserialized);
+    }
+
+    Ok(all_traces)
+}
+
+fn write_all_traces(serialized_traces: String) -> Result<(), InterpolError> {
+    let mut file = File::create(format!("{}/{}", INTERPOL_DIR, "interpol_traces.json"))?;
+    write!(file, "{}", serialized_traces)?;
+    Ok(())
 }
