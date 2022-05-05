@@ -19,6 +19,7 @@ use crate::mpi_events::{
 use crate::types::{MpiComm, MpiRank, MpiReq, MpiTag, Tsc, Usecs};
 use crate::InterpolError;
 use lazy_static::lazy_static;
+use rayon::prelude::*;
 use std::fs::{self, File};
 use std::io::Write;
 use std::sync::Mutex;
@@ -663,7 +664,11 @@ pub extern "C" fn sort_all_traces() {
         Err(e) => panic!("{e}"),
     };
 
-    all_traces.sort_unstable_by_key(|event| event.tsc());
+    let start = std::time::Instant::now();
+    all_traces.par_sort_unstable_by_key(|event| event.tsc());
+    let end = start.elapsed();
+    println!("Sort took {end:?}");
+
     let serialized_traces =
         serde_json::to_string_pretty(&all_traces).expect("failed to serialize all traces");
     match write_all_traces(serialized_traces) {
