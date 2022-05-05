@@ -1,10 +1,9 @@
 use crate::{
-    interpol::Register,
+    impl_builder_error, impl_register,
     types::{MpiComm, MpiRank, MpiTag, Tsc},
 };
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use std::collections::TryReserveError;
 
 /// A structure that stores information about `MPI_Send` calls.
 ///
@@ -51,15 +50,8 @@ impl MpiSend {
     }
 }
 
-#[typetag::serde]
-impl Register for MpiSend {
-    fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError> {
-        // Ensure that the program does not panic if allocation fails
-        events.try_reserve_exact(2 * events.len())?;
-        events.push(Box::new(self));
-        Ok(())
-    }
-}
+impl_builder_error!(MpiSendBuilderError);
+impl_register!(MpiSend);
 
 #[cfg(test)]
 mod tests {

@@ -1,8 +1,7 @@
-use crate::interpol::Register;
+use crate::{impl_builder_error, impl_register};
 use crate::types::{MpiComm, MpiRank, MpiReq, Tsc};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use std::collections::TryReserveError;
 
 /// A structure that stores information about `MPI_Barrier` calls.
 ///
@@ -36,15 +35,8 @@ impl MpiIbarrier {
     }
 }
 
-#[typetag::serde]
-impl Register for MpiIbarrier {
-    fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError> {
-        // Ensure that the program does not panic if allocation fails
-        events.try_reserve_exact(2 * events.len())?;
-        events.push(Box::new(self));
-        Ok(())
-    }
-}
+impl_builder_error!(MpiIbarrierBuilderError);
+impl_register!(MpiIbarrier);
 
 #[cfg(test)]
 mod tests {
@@ -68,8 +60,11 @@ mod tests {
     #[test]
     fn serializes() {
         let ibarrier = MpiIbarrier::new(0, 0, 0, 1024, 2048);
-        let json = String::from("{\"current_rank\":0,\"comm\":0,\"req\":0,\"tsc\":1024,\"duration\":2048}");
-        let serialized = serde_json::to_string(&ibarrier).expect("failed to serialize `MpiIbarrier`");
+        let json = String::from(
+            "{\"current_rank\":0,\"comm\":0,\"req\":0,\"tsc\":1024,\"duration\":2048}",
+        );
+        let serialized =
+            serde_json::to_string(&ibarrier).expect("failed to serialize `MpiIbarrier`");
 
         assert_eq!(json, serialized);
     }

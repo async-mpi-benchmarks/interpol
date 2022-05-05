@@ -1,8 +1,7 @@
-use crate::interpol::Register;
+use crate::{impl_builder_error, impl_register};
 use crate::types::{MpiComm, MpiRank, MpiReq, Tsc};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use std::collections::TryReserveError;
 
 /// A structure that stores information about `MPI_Igather` calls.
 ///
@@ -53,15 +52,8 @@ impl MpiIgather {
     }
 }
 
-#[typetag::serde]
-impl Register for MpiIgather {
-    fn register(self, events: &mut Vec<Box<dyn Register>>) -> Result<(), TryReserveError> {
-        // Ensure that the program does not panic if allocation fails
-        events.try_reserve_exact(2 * events.len())?;
-        events.push(Box::new(self));
-        Ok(())
-    }
-}
+impl_builder_error!(MpiIgatherBuilderError);
+impl_register!(MpiIgather);
 
 #[cfg(test)]
 mod tests {
