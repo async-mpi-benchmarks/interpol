@@ -36,9 +36,13 @@ To build the library and for it to work properly, please make sure that the foll
 
 
 ## Building
-To build the library, it is recommended to use the provided Makefile:
+To build the C library, it is recommended to use the provided Makefile:
 ```sh
 make
+```
+To build the Fortran library, it is recommended to use the provided Makefile:
+```sh
+make buildf
 ```
 Optionnaly, you can install/uninstall it from your computer (in `/usr/lib/` by default):
 ```sh
@@ -47,7 +51,11 @@ sudo make uninstall
 ```
 This will first call `cargo` to build the Rust back-end in release mode (automatically exported to the `LD_LIBRARY_PATH` environment variable).
 Then, it will compile the interposition library into a single `.so` file.
-
+For the Fortran library use
+```sh
+sudo make installf
+sudo make uninstallf
+```
 
 ## Usage
 **IMPORTANT NOTE:** It is mandatory that you compile both the Interpol library and the MPI application that you want to trace using the _same_ `mpicc` compiler. This is because the MPI standard does not enforce any particular ABI, therefore, if the library and your program are not compiled with the same MPI implementation, conflicts may cause the traced program or the library to crash or generate incorrect traces.
@@ -56,6 +64,11 @@ If you've installed the library, the command to preload it when running your MPI
 ```sh
 LD_PRELOAD=libinterpol.so <MPICMD> -n <NB_PROC> <BINARY>
 ```
-Otherwise, you need to provide the absolute path to the `libinterpol.so` file.
+And for the Fortran library
+```sh
+LD_PRELOAD=libinterpolf.so <MPICMD> -n <NB_PROC> <BINARY>
+```
+
+Otherwise, you need to provide the absolute path to the `libinterpol.so` or `libinterpolf.so` file.
 
 You can also check the documentation for the Rust back-end with the `make doc` command and run the unit tests with `make test`.
