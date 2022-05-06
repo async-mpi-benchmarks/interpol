@@ -680,3 +680,62 @@ _EXTERN_C_ void mpi_wait_(MPI_Fint *request, MPI_Fint *status, MPI_Fint *ierr) {
 _EXTERN_C_ void mpi_wait__(MPI_Fint *request, MPI_Fint *status, MPI_Fint *ierr) { 
     MPI_Wait_fortran_wrapper(request, status, ierr);
 }
+
+
+static void MPI_Ibcast_fortran_wrapper(MPI_Fint *buffer, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    int _wrap_py_return_val = 0;
+
+    Tsc const tsc = rdtsc();
+
+    #if (!defined(MPICH_HAS_C2F) && defined(MPICH_NAME) && (MPICH_NAME == 1)) /* MPICH test */
+        _wrap_py_return_val = PMPI_Ibcast((void*)buffer, *count, (MPI_Datatype)(*datatype), *root, (MPI_Comm)(*comm), (MPI_Request*)request);
+    #else /* MPI-2 safe call */
+        MPI_Request temp_request;
+        temp_request = MPI_Request_f2c(*request);
+        _wrap_py_return_val = PMPI_Ibcast((void*)buffer, *count, MPI_Type_f2c(*datatype), *root, MPI_Comm_f2c(*comm), &temp_request);
+        *request = MPI_Request_c2f(temp_request);
+    #endif /* MPICH test */
+
+    Tsc const duration = rdtsc() - tsc;
+
+    int nb_bytes;
+    PMPI_Type_size(MPI_Type_f2c(*datatype), &nb_bytes);
+
+    MpiCall const ibcast = {
+        .kind = Ibcast,
+        .time = -1.0,
+        .tsc = tsc,
+        .duration = duration,
+        .current_rank = current_rank,
+        .partner_rank = *root,
+        .nb_bytes_s = nb_bytes * (*count),
+        .nb_bytes_r = 0,
+        .comm = PMPI_Comm_c2f((MPI_Comm)comm),
+        .req = *request,
+        .tag = -1,
+        .required_thread_lvl = -1,
+        .provided_thread_lvl = -1,
+        .op_type = -1,
+        .finished = false,
+    };
+
+    register_mpi_call(ibcast);
+
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_IBCAST(MPI_Fint *buffer, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Ibcast_fortran_wrapper(buffer, count, datatype, root, comm, request, ierr);
+}
+
+_EXTERN_C_ void mpi_ibcast(MPI_Fint *buffer, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Ibcast_fortran_wrapper(buffer, count, datatype, root, comm, request, ierr);
+}
+
+_EXTERN_C_ void mpi_ibcast_(MPI_Fint *buffer, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Ibcast_fortran_wrapper(buffer, count, datatype, root, comm, request, ierr);
+}
+
+_EXTERN_C_ void mpi_ibcast__(MPI_Fint *buffer, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Ibcast_fortran_wrapper(buffer, count, datatype, root, comm, request, ierr);
+}
