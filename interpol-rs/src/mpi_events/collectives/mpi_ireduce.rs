@@ -1,4 +1,4 @@
-use crate::types::{MpiComm, MpiRank, MpiReq, Tsc};
+use crate::types::{MpiComm, MpiRank, MpiReq, Tsc, MPIOp};
 use crate::{impl_builder_error, impl_register};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ pub struct MpiIreduce {
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
-    op_type: i8,
+    op_type: MPIOp,
     comm: MpiComm,
     req: MpiReq,
     tsc: Tsc,
@@ -33,7 +33,7 @@ impl MpiIreduce {
         current_rank: MpiRank,
         partner_rank: MpiRank,
         nb_bytes: u32,
-        op_type: i8,
+        op_type: MPIOp,
         comm: MpiComm,
         req: MpiReq,
         tsc: Tsc,
