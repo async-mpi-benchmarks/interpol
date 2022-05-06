@@ -20,7 +20,7 @@ use crate::types::{MpiComm, MpiRank, MpiReq, MpiTag, Tsc, Usecs};
 use crate::InterpolError;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
-use std::fs::{self, File};
+use std::{fs::{self, OpenOptions}, path::PathBuf};
 use std::io::Write;
 use std::sync::Mutex;
 
@@ -131,6 +131,7 @@ fn serialize(
     events: &mut Vec<Box<dyn Register>>,
     current_rank: MpiRank,
 ) -> Result<(), InterpolError> {
+    println!("[interpol]: serializing traces for rank {current_rank}");
     let ser_traces = serde_json::to_string_pretty(events)
         .expect("failed to serialize vector contents to string");
     let filename = format!(
@@ -140,7 +141,11 @@ fn serialize(
     );
 
     fs::create_dir_all(INTERPOL_DIR)?;
-    let mut file = File::create(filename.clone())?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(filename.clone())?;
     write!(file, "{}", ser_traces)?;
     Ok(())
 }
@@ -659,18 +664,34 @@ fn register_iscatter(
 
 #[no_mangle]
 pub extern "C" fn sort_all_traces() {
+    println!("[interpol]: deserializing traces for each rank");
     let mut all_traces = match deserialize_all_traces() {
         Ok(t) => t,
         Err(e) => panic!("{e}"),
     };
 
+    print!("[interpol]: sorting traces... ");
     let start = std::time::Instant::now();
     all_traces.par_sort_unstable_by_key(|event| event.tsc());
     let end = start.elapsed();
-    eprintln!("Sort took {end:?}");
+    println!("finished in {end:?}");
 
-    let serialized_traces =
-        serde_json::to_string_pretty(&all_traces).expect("failed to serialize all traces");
+    let serialized_traces = match std::env::var_os("INTERPOL_OUTPUT") {
+        Some(val) => {
+            if val == "readable" {
+                println!("[interpol]: serializing all traces (pretty print)");
+                serde_json::to_string_pretty(&all_traces).expect("failed to serialize all traces")
+            } else {
+                println!("[interpol]: serializing all traces (compressed print)");
+                serde_json::to_string(&all_traces).expect("failed to serialize all traces")
+            }
+        },
+        None => {
+            println!("[interpol]: serializing all traces (compressed print)");
+            serde_json::to_string(&all_traces).expect("failed to serialize all traces")
+        }
+    };
+
     match write_all_traces(serialized_traces) {
         Ok(_) => (),
         Err(e) => eprintln!("{e}"),
@@ -681,18 +702,28 @@ fn deserialize_all_traces() -> Result<Vec<Box<dyn Register>>, InterpolError> {
     let mut all_traces = Vec::new();
 
     for entry in fs::read_dir(INTERPOL_DIR)? {
-        let dir = entry?;
-        let contents = fs::read_to_string(dir.path())?;
-        let mut deserialized: Vec<Box<dyn Register>> =
-            serde_json::from_str(&contents).expect("failed to deserialize trace file contents");
-        all_traces.append(&mut deserialized);
+        let dir_entry = entry?;
+        if dir_entry.file_name() == PathBuf::from("interpol_traces.json") {
+            fs::remove_file(dir_entry.path())?;
+            continue;
+        }
+        if dir_entry.path().extension().unwrap() == "json" {
+            let contents = fs::read_to_string(dir_entry.path())?;
+            let mut deserialized: Vec<Box<dyn Register>> =
+                serde_json::from_str(&contents).expect("failed to deserialize trace file contents");
+            all_traces.append(&mut deserialized);
+        }
     }
 
     Ok(all_traces)
 }
 
 fn write_all_traces(serialized_traces: String) -> Result<(), InterpolError> {
-    let mut file = File::create(format!("{}/{}", INTERPOL_DIR, "interpol_traces.json"))?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(format!("{}/{}", INTERPOL_DIR, "interpol_traces.json"))?;
     write!(file, "{}", serialized_traces)?;
     Ok(())
 }
