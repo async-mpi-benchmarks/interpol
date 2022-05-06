@@ -219,3 +219,58 @@ _EXTERN_C_ void mpi_finalize_(MPI_Fint *ierr) {
 _EXTERN_C_ void mpi_finalize__(MPI_Fint *ierr) { 
     MPI_Finalize_fortran_wrapper(ierr);
 }
+
+static void MPI_Send_fortran_wrapper(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *dest, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *ierr) { 
+    int _wrap_py_return_val = 0;
+
+    Tsc const tsc = rdtsc();
+
+    #if (!defined(MPICH_HAS_C2F) && defined(MPICH_NAME) && (MPICH_NAME == 1)) /* MPICH test */
+        _wrap_py_return_val = PMPI_Send((const void*)buf, *count, (MPI_Datatype)(*datatype), *dest, *tag, (MPI_Comm)(*comm));
+    #else /* MPI-2 safe call */
+        _wrap_py_return_val = PMPI_Send((const void*)buf, *count, MPI_Type_f2c(*datatype), *dest, *tag, MPI_Comm_f2c(*comm));
+    #endif /* MPICH test */
+
+    Tsc const duration = rdtsc() - tsc;
+
+    int nb_bytes;
+    PMPI_Type_size(MPI_Type_f2c(*datatype), &nb_bytes);
+
+    MpiCall const send = {
+        .kind = Send,
+        .time = -1.0,
+        .tsc = tsc,
+        .duration = duration,
+        .current_rank = current_rank,
+        .partner_rank = *dest,
+        .nb_bytes_s = nb_bytes * (*count),
+        .nb_bytes_r = 0,
+        .comm = PMPI_Comm_c2f((MPI_Comm)comm),
+        .req = -1,
+        .tag = *tag,
+        .required_thread_lvl = -1,
+        .provided_thread_lvl = -1,
+        .op_type = -1,
+        .finished = false,
+    };
+
+    register_mpi_call(send);
+
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_SEND(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *dest, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *ierr) { 
+    MPI_Send_fortran_wrapper(buf, count, datatype, dest, tag, comm, ierr);
+}
+
+_EXTERN_C_ void mpi_send(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *dest, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *ierr) { 
+    MPI_Send_fortran_wrapper(buf, count, datatype, dest, tag, comm, ierr);
+}
+
+_EXTERN_C_ void mpi_send_(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *dest, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *ierr) { 
+    MPI_Send_fortran_wrapper(buf, count, datatype, dest, tag, comm, ierr);
+}
+
+_EXTERN_C_ void mpi_send__(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *dest, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *ierr) { 
+    MPI_Send_fortran_wrapper(buf, count, datatype, dest, tag, comm, ierr);
+}
