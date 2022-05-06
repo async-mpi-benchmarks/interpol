@@ -16,13 +16,16 @@ use crate::mpi_events::{
         mpi_wait::MpiWaitBuilder,
     },
 };
-use crate::types::{MpiComm, MpiRank, MpiReq, MpiTag, Tsc, Usecs, MpiCallType, MPIOp};
+use crate::types::{MpiCallType, MpiComm, MpiOp, MpiRank, MpiReq, MpiTag, Tsc, Usecs};
 use crate::InterpolError;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
-use std::{fs::{self, OpenOptions}, path::PathBuf};
 use std::io::Write;
 use std::sync::Mutex;
+use std::{
+    fs::{self, File},
+    path::PathBuf,
+};
 
 static INTERPOL_DIR: &str = "interpol-tmp";
 
@@ -102,7 +105,7 @@ pub struct MpiCall {
     required_thread_lvl: i32,
     provided_thread_lvl: i32,
     finished: bool,
-    op_type: MPIOp,
+    op_type: MpiOp,
     kind: MpiCallType,
 }
 
@@ -121,7 +124,7 @@ fn serialize(
     );
 
     fs::create_dir_all(INTERPOL_DIR)?;
-    let mut file = OpenOptions::new()
+    let mut file = File::options()
         .write(true)
         .truncate(true)
         .create(true)
@@ -588,7 +591,7 @@ fn register_ireduce(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
-    op_type: MPIOp,
+    op_type: MpiOp,
     comm: MpiComm,
     req: MpiReq,
     tsc: Tsc,
@@ -665,7 +668,7 @@ pub extern "C" fn sort_all_traces() {
                 println!("[interpol]: serializing all traces (compressed print)");
                 serde_json::to_string(&all_traces).expect("failed to serialize all traces")
             }
-        },
+        }
         None => {
             println!("[interpol]: serializing all traces (compressed print)");
             serde_json::to_string(&all_traces).expect("failed to serialize all traces")
@@ -699,7 +702,7 @@ fn deserialize_all_traces() -> Result<Vec<Box<dyn Register>>, InterpolError> {
 }
 
 fn write_all_traces(serialized_traces: String) -> Result<(), InterpolError> {
-    let mut file = OpenOptions::new()
+    let mut file = File::options()
         .write(true)
         .truncate(true)
         .create(true)

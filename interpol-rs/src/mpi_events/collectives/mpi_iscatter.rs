@@ -1,5 +1,5 @@
-use crate::{impl_builder_error, impl_register};
 use crate::types::{MpiComm, MpiRank, MpiReq, Tsc};
+use crate::{impl_builder_error, impl_register};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 

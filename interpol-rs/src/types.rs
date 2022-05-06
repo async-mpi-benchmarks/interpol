@@ -32,19 +32,19 @@ pub enum MpiCallType {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[repr(i8)]
-pub enum MPIOp {
-	MPIOPNULL,
-	MPIMAX,
-  	MPIMIN,
-  	MPISUM,
-  	MPIPROD,
-  	MPILAND,
-  	MPIBAND,
-  	MPILOR,
-  	MPIBOR,
-  	MPILXOR,
-  	MPIBXOR,
-  	MPIMINLOC,
-  	MPIMAXLOC,
-  	MPIREPLACE,
+pub enum MpiOp {
+    Opnull,
+    Max,
+    Min,
+    Sum,
+    Prod,
+    Land,
+    Band,
+    Lor,
+    Bor,
+    Lxor,
+    Bxor,
+    Minloc,
+    Maxloc,
+    Replace,
 }

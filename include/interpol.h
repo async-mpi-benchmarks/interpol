@@ -9,25 +9,6 @@
 #include <stdlib.h>
 
 
-enum MPIOp
-{
-    MPIOPNULL,
-    MPIMAX,
-    MPIMIN,
-    MPISUM,
-    MPIPROD,
-    MPILAND,
-    MPIBAND,
-    MPILOR,
-    MPIBOR,
-    MPILXOR,
-    MPIBXOR,
-    MPIMINLOC,
-    MPIMAXLOC,
-    MPIREPLACE,
-};
-typedef int8_t MPIOp;
-
 enum MpiCallType
 {
     Init,
@@ -47,6 +28,25 @@ enum MpiCallType
     Iscatter,
 };
 typedef int8_t MpiCallType;
+
+enum MpiOp
+{
+    Opnull,
+    Max,
+    Min,
+    Sum,
+    Prod,
+    Land,
+    Band,
+    Lor,
+    Bor,
+    Lxor,
+    Bxor,
+    Minloc,
+    Maxloc,
+    Replace,
+};
+typedef int8_t MpiOp;
 
 typedef double Usecs;
 
@@ -75,7 +75,7 @@ typedef struct MpiCall
     int32_t required_thread_lvl;
     int32_t provided_thread_lvl;
     bool finished;
-    MPIOp op_type;
+    MpiOp op_type;
     MpiCallType kind;
 } MpiCall;
 
