@@ -13,14 +13,26 @@ PWD=$(shell pwd)
 build: libinterpol.so
 	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(PWD)/interpol-rs/target/release/:$(PWD)
 
+buildf: libinterpolf.so
+	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(PWD)/interpol-rs/target/release/:$(PWD)
+
 install: build
 	@cp libinterpol.so interpol-rs/target/release/libinterpol_rs.so /usr/lib/
 
 uninstall:
 	@rm /usr/lib/libinterpol.so /usr/lib/libinterpol_rs.so 
 
+installf: buildf
+	@cp libinterpolf.so interpol-rs/target/release/libinterpol_rs.so /usr/lib/
+
+uninstallf:
+	@rm /usr/lib/libinterpolf.so /usr/lib/libinterpol_rs.so 
+
 libinterpol.so: $(RS_LIB)/libinterpol_rs.so $(INCLUDE)/tsc.h $(SRC)/interpol.c $(INCLUDE)/interpol.h
 	$(CC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpol.c -o $@ -linterpol_rs
+
+libinterpolf.so: $(RS_LIB)/libinterpol_rs.so $(INCLUDE)/tsc.h $(SRC)/interpolf.c $(INCLUDE)/interpol.h
+	$(CC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpolf.c -o $@ -linterpol_rs
 
 $(RS_LIB)/libinterpol_rs.so: $(RS_SRC)/*.rs
 	@cd interpol-rs/ && cargo build --release
@@ -37,5 +49,6 @@ reset:
 clean:
 	@cd interpol-rs/ && cargo clean
 	@rm -Rf $(TARGET) libinterpol.so
+	@rm -Rf $(TARGET) libinterpolf.so
 
 .PHONY: build install uninstall test doc reset clean

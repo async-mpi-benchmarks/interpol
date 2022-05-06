@@ -1,0 +1,169 @@
+#include "../include/interpol.h"
+#include "../include/tsc.h"
+
+#include <mpi.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <sys/time.h>
+
+#ifndef _EXTERN_C_
+#ifdef __cplusplus
+#define _EXTERN_C_ extern "C"
+#else /* __cplusplus */
+#define _EXTERN_C_
+#endif /* __cplusplus */
+#endif /* _EXTERN_C_ */
+
+#ifdef MPICH_HAS_C2F
+_EXTERN_C_ void *MPIR_ToPointer(int);
+#endif // MPICH_HAS_C2F
+
+#ifdef PIC
+/* For shared libraries, declare these weak and figure out which one was linked
+   based on which init wrapper was called.  See mpi_init wrappers.  */
+#pragma weak pmpi_init
+#pragma weak PMPI_INIT
+#pragma weak pmpi_init_
+#pragma weak pmpi_init__
+#endif /* PIC */
+
+_EXTERN_C_ void pmpi_init(MPI_Fint *ierr);
+_EXTERN_C_ void PMPI_INIT(MPI_Fint *ierr);
+_EXTERN_C_ void pmpi_init_(MPI_Fint *ierr);
+_EXTERN_C_ void pmpi_init__(MPI_Fint *ierr);
+
+static int fortran_init = 0;
+static MpiRank current_rank = -1;
+
+int32_t jenkins_one_at_a_time_hash(char const* key, size_t len)
+{
+    int32_t hash = 0;
+
+    for (size_t i = 0; i < len; i++) {
+        hash += key[i];
+        hash += (hash << 10);
+        hash ^= (hash >> 6);
+    }
+
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+
+    return hash;
+}
+
+/* =============== Fortran Wrappers for MPI_Init =============== */
+static void MPI_Init_fortran_wrapper(MPI_Fint *ierr) { 
+    int argc = 0;
+    char ** argv = NULL;
+    int _wrap_py_return_val = 0;
+
+    _wrap_py_return_val = MPI_Init(&argc, &argv);
+    PMPI_Barrier(MPI_COMM_WORLD);
+
+    // Measure the current time and TSC.
+    Tsc const tsc = fenced_rdtscp();
+    struct timeval timeofday;
+    gettimeofday(&timeofday, NULL);
+
+    // Set the rank of the current MPI process/thread
+    PMPI_Comm_rank(MPI_COMM_WORLD, &current_rank);
+
+    MpiCall const init = {
+        .kind = Init,
+        .time = timeofday.tv_sec + timeofday.tv_usec / 1e6,
+        .tsc = tsc,
+        .duration = 0,
+        .current_rank = current_rank,
+        .partner_rank = -1,
+        .nb_bytes_s = 0,
+        .nb_bytes_r = 0,
+        .comm = -1,
+        .req = -1,
+        .tag = -1,
+        .required_thread_lvl = -1,
+        .provided_thread_lvl = -1,
+        .op_type = -1,
+        .finished = false,
+    };
+
+    register_mpi_call(init);
+
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_INIT(MPI_Fint *ierr) { 
+    fortran_init = 1;
+    MPI_Init_fortran_wrapper(ierr);
+}
+
+_EXTERN_C_ void mpi_init(MPI_Fint *ierr) { 
+    fortran_init = 2;
+    MPI_Init_fortran_wrapper(ierr);
+}
+
+_EXTERN_C_ void mpi_init_(MPI_Fint *ierr) { 
+    fortran_init = 3;
+    MPI_Init_fortran_wrapper(ierr);
+}
+
+_EXTERN_C_ void mpi_init__(MPI_Fint *ierr) { 
+    fortran_init = 4;
+    MPI_Init_fortran_wrapper(ierr);
+}
+/* ================= End Wrappers for MPI_Init ================= */
+
+static void MPI_Finalize_fortran_wrapper(MPI_Fint *ierr) { 
+    int _wrap_py_return_val = 0;
+
+    PMPI_Barrier(MPI_COMM_WORLD);
+    // Measure the current time and TSC.
+    Tsc const tsc = fenced_rdtscp();
+    struct timeval timeofday;
+    gettimeofday(&timeofday, NULL);
+
+    MpiCall const finalize = {
+        .kind = Finalize,
+        .time = timeofday.tv_sec + timeofday.tv_usec / 1e6,
+        .tsc = tsc,
+        .duration = 0,
+        .current_rank = current_rank,
+        .partner_rank = -1,
+        .nb_bytes_s = 0,
+        .nb_bytes_r = 0,
+        .comm = -1,
+        .req = -1,
+        .tag = -1,
+        .required_thread_lvl = -1,
+        .provided_thread_lvl = -1,
+        .op_type = -1,
+        .finished = false,
+    };
+
+    register_mpi_call(finalize);
+
+    PMPI_Barrier(MPI_COMM_WORLD);
+    if (current_rank == 0) {
+        sort_all_traces();
+    }
+
+    _wrap_py_return_val = MPI_Finalize();
+
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_FINALIZE(MPI_Fint *ierr) { 
+    MPI_Finalize_fortran_wrapper(ierr);
+}
+
+_EXTERN_C_ void mpi_finalize(MPI_Fint *ierr) { 
+    MPI_Finalize_fortran_wrapper(ierr);
+}
+
+_EXTERN_C_ void mpi_finalize_(MPI_Fint *ierr) { 
+    MPI_Finalize_fortran_wrapper(ierr);
+}
+
+_EXTERN_C_ void mpi_finalize__(MPI_Fint *ierr) { 
+    MPI_Finalize_fortran_wrapper(ierr);
+}
