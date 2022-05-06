@@ -9,139 +9,76 @@
 #include <stdlib.h>
 
 
-typedef enum call_type
+enum MPIOp
+{
+    MPIOPNULL,
+    MPIMAX,
+    MPIMIN,
+    MPISUM,
+    MPIPROD,
+    MPILAND,
+    MPIBAND,
+    MPILOR,
+    MPIBOR,
+    MPILXOR,
+    MPIBXOR,
+    MPIMINLOC,
+    MPIMAXLOC,
+    MPIREPLACE,
+};
+typedef int8_t MPIOp;
+
+enum MpiCallType
 {
     Init,
     Initthread,
     Finalize,
     Send,
-    Isend,
     Recv,
+    Isend,
     Irecv,
-    Wait,
     Test,
+    Wait,
     Barrier,
-} call_type;
+    Ibarrier,
+    Ibcast,
+    Igather,
+    Ireduce,
+    Iscatter,
+};
+typedef int8_t MpiCallType;
+
+typedef double Usecs;
 
 typedef uint64_t Tsc;
 
-typedef double Usecs;
+typedef int32_t MpiRank;
 
 typedef int32_t MpiComm;
 
 typedef int32_t MpiReq;
 
-typedef int32_t MpiRank;
-
 typedef int32_t MpiTag;
 
 typedef struct MpiCall
 {
-    enum call_type call;
+    Usecs time;
     Tsc tsc;
     Tsc duration;
-    Usecs time;
-    uint32_t nb_bytes;
+    MpiRank partner_rank;
+    MpiRank current_rank;
+    uint32_t nb_bytes_s;
+    uint32_t nb_bytes_r;
     MpiComm comm;
     MpiReq req;
-    MpiRank current_rank;
-    MpiRank *partner_rank;
     MpiTag tag;
     int32_t required_thread_lvl;
     int32_t provided_thread_lvl;
     bool finished;
+    MPIOp op_type;
+    MpiCallType kind;
 } MpiCall;
 
-void register_mpi_call(struct MpiCall call);
+void register_mpi_call(struct MpiCall mpi_call);
 
-/**
- * Registers an `MPI_Init` call into a static vector.
- */
-void register_init(MpiRank current_rank, Tsc tsc, Usecs time);
-
-/**
- * Registers an `MPI_Init_thread` call into a static vector.
- */
-void register_init_thread(MpiRank current_rank,
-                          Tsc tsc,
-                          Usecs time,
-                          int32_t required_thread_lvl,
-                          int32_t provided_thread_lvl);
-
-/**
- * Registers an `MPI_Finalize` call into a static vector.
- *
- * As this *should* be the final registered event, the contents of the vector will be sorted with
- * every other MPI processes vectors' and then serialized.
- */
-void register_finalize(MpiRank current_rank,
-                       Tsc tsc,
-                       Usecs time);
-
-/**
- * Registers an `MPI_Send` call into a static vector.
- */
-void register_send(MpiRank current_rank,
-                   MpiRank partner_rank,
-                   uint32_t nb_bytes,
-                   MpiComm comm,
-                   MpiTag tag,
-                   Tsc tsc,
-                   Tsc duration);
-
-/**
- * Registers an `MPI_Recv` call into a static vector.
- */
-void register_recv(MpiRank current_rank,
-                   MpiRank partner_rank,
-                   uint32_t nb_bytes,
-                   MpiComm comm,
-                   MpiTag tag,
-                   Tsc tsc,
-                   Tsc duration);
-
-/**
- * Registers an `MPI_Isend` call into a static vector.
- */
-void register_isend(MpiRank current_rank,
-                    MpiRank partner_rank,
-                    uint32_t nb_bytes,
-                    MpiComm comm,
-                    MpiReq req,
-                    MpiTag tag,
-                    Tsc tsc,
-                    Tsc duration);
-
-/**
- * Registers an `MPI_Irecv` call into a static vector.
- */
-void register_irecv(MpiRank current_rank,
-                    MpiRank partner_rank,
-                    uint32_t nb_bytes,
-                    MpiComm comm,
-                    MpiReq req,
-                    MpiTag tag,
-                    Tsc tsc,
-                    Tsc duration);
-
-/**
- * Registers an `MPI_Barrier` call into a static vector.
- */
-void register_barrier(MpiRank current_rank,
-                      MpiComm comm,
-                      Tsc tsc,
-                      Tsc duration);
-
-/**
- * Registers an `MPI_Test` call into a static vector.
- */
-void register_test(MpiRank current_rank,
-                   MpiReq req,
-                   bool finished,
-                   Tsc tsc,
-                   Tsc duration);
-
-/**
- * Registers an `MPI_Wait` call into a static vector.
- */
-void register_wait(MpiRank current_rank, MpiReq req, Tsc tsc, Tsc duration);
+void sort_all_traces(void);
