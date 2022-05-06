@@ -453,3 +453,56 @@ _EXTERN_C_ void mpi_irecv_(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, M
 _EXTERN_C_ void mpi_irecv__(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *source, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
     MPI_Irecv_fortran_wrapper(buf, count, datatype, source, tag, comm, request, ierr);
 }
+
+
+static void MPI_Barrier_fortran_wrapper(MPI_Fint *comm, MPI_Fint *ierr) { 
+    int _wrap_py_return_val = 0;
+
+    Tsc const tsc = rdtsc();
+    
+    #if (!defined(MPICH_HAS_C2F) && defined(MPICH_NAME) && (MPICH_NAME == 1)) /* MPICH test */
+        _wrap_py_return_val = PMPI_Barrier((MPI_Comm)(*comm));
+    #else /* MPI-2 safe call */
+        _wrap_py_return_val = PMPI_Barrier(MPI_Comm_f2c(*comm));
+    #endif /* MPICH test */
+
+    Tsc const duration = rdtsc() - tsc;
+
+    MpiCall const barrier = {
+        .kind = Barrier,
+        .time = -1.0,
+        .tsc = tsc,
+        .duration = duration,
+        .current_rank = current_rank,
+        .partner_rank = -1,
+        .nb_bytes_s = 0,
+        .nb_bytes_r = 0,
+        .comm = PMPI_Comm_c2f((MPI_Comm)comm),
+        .req = -1,
+        .tag = -1,
+        .required_thread_lvl = -1,
+        .provided_thread_lvl = -1,
+        .op_type = -1,
+        .finished = false,
+    };
+
+    register_mpi_call(barrier);
+
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_BARRIER(MPI_Fint *comm, MPI_Fint *ierr) { 
+    MPI_Barrier_fortran_wrapper(comm, ierr);
+}
+
+_EXTERN_C_ void mpi_barrier(MPI_Fint *comm, MPI_Fint *ierr) { 
+    MPI_Barrier_fortran_wrapper(comm, ierr);
+}
+
+_EXTERN_C_ void mpi_barrier_(MPI_Fint *comm, MPI_Fint *ierr) { 
+    MPI_Barrier_fortran_wrapper(comm, ierr);
+}
+
+_EXTERN_C_ void mpi_barrier__(MPI_Fint *comm, MPI_Fint *ierr) { 
+    MPI_Barrier_fortran_wrapper(comm, ierr);
+}
