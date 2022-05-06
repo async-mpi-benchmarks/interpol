@@ -9,23 +9,6 @@
 /// Global variable that stores the rank of the current process.
 static MpiRank current_rank = -1;
 
-int32_t jenkins_one_at_a_time_hash(char const* key, size_t len)
-{
-    int32_t hash = 0;
-
-    for (size_t i = 0; i < len; i++) {
-        hash += key[i];
-        hash += (hash << 10);
-        hash ^= (hash >> 6);
-    }
-
-    hash += (hash << 3);
-    hash ^= (hash >> 11);
-    hash += (hash << 15);
-
-    return hash;
-}
-
 /** ------------------------------------------------------------------------ **
  * Management functions.                                                      *
  ** ------------------------------------------------------------------------ **/
@@ -225,7 +208,7 @@ int MPI_Isend(const void* buf, int count, MPI_Datatype datatype, int dest,
         .nb_bytes_s = nb_bytes * count,
         .nb_bytes_r = 0,
         .comm = PMPI_Comm_c2f(comm),
-        .req = jenkins_one_at_a_time_hash((char*)request, sizeof(MPI_Request)),
+        .req = PMPI_Request_c2f(*request),
         .tag = tag,
         .required_thread_lvl = -1,
         .provided_thread_lvl = -1,
@@ -257,7 +240,7 @@ int MPI_Irecv(void* buf, int count, MPI_Datatype datatype, int source, int tag,
         .nb_bytes_s = 0,
         .nb_bytes_r = nb_bytes * count,
         .comm = PMPI_Comm_c2f(comm),
-        .req = jenkins_one_at_a_time_hash((char*)request, sizeof(MPI_Request)),
+        .req = PMPI_Request_c2f(*request),
         .tag = tag,
         .required_thread_lvl = -1,
         .provided_thread_lvl = -1,
@@ -317,7 +300,7 @@ int MPI_Ibarrier(MPI_Comm comm, MPI_Request* request)
         .nb_bytes_s = 0,
         .nb_bytes_r = 0,
         .comm = PMPI_Comm_c2f(comm),
-        .req = jenkins_one_at_a_time_hash((char*)request, sizeof(MPI_Request)),
+        .req = PMPI_Request_c2f(*request),
         .tag = -1,
         .required_thread_lvl = -1,
         .provided_thread_lvl = -1,
@@ -331,6 +314,7 @@ int MPI_Ibarrier(MPI_Comm comm, MPI_Request* request)
 
 int MPI_Test(MPI_Request* request, int* flag, MPI_Status* status)
 {
+    MpiReq const req = PMPI_Request_c2f(*request);
     Tsc const tsc = rdtsc();
     int ret = PMPI_Test(request, flag, status);
     Tsc const duration = rdtsc() - tsc;
@@ -345,7 +329,7 @@ int MPI_Test(MPI_Request* request, int* flag, MPI_Status* status)
         .nb_bytes_s = 0,
         .nb_bytes_r = 0,
         .comm = -1,
-        .req = jenkins_one_at_a_time_hash((char*)request, sizeof(MPI_Request)),
+        .req = req,
         .tag = -1,
         .required_thread_lvl = -1,
         .provided_thread_lvl = -1,
@@ -359,6 +343,7 @@ int MPI_Test(MPI_Request* request, int* flag, MPI_Status* status)
 
 int MPI_Wait(MPI_Request* request, MPI_Status* status)
 {
+    MpiReq const req = PMPI_Request_c2f(*request);
     Tsc const tsc = rdtsc();
     int ret = PMPI_Wait(request, status);
     Tsc const duration = rdtsc() - tsc;
@@ -373,7 +358,7 @@ int MPI_Wait(MPI_Request* request, MPI_Status* status)
         .nb_bytes_s = 0,
         .nb_bytes_r = 0,
         .comm = -1,
-        .req = jenkins_one_at_a_time_hash((char*)request, sizeof(MPI_Request)),
+        .req = req,
         .tag = -1,
         .required_thread_lvl = -1,
         .provided_thread_lvl = -1,
@@ -409,7 +394,7 @@ int MPI_Ibcast(void* buf, int count, MPI_Datatype datatype, int root,
         .nb_bytes_s = nb_bytes * count,
         .nb_bytes_r = 0,
         .comm = PMPI_Comm_c2f(comm),
-        .req = jenkins_one_at_a_time_hash((char*)request, sizeof(MPI_Request)),
+        .req = PMPI_Request_c2f(*request),
         .tag = -1,
         .required_thread_lvl = -1,
         .provided_thread_lvl = -1,
@@ -444,7 +429,7 @@ int MPI_Igather(void const* sendbuf, int sendcount, MPI_Datatype sendtype,
         .nb_bytes_s = nb_bytes_send * sendcount,
         .nb_bytes_r = nb_bytes_recv * recvcount,
         .comm = PMPI_Comm_c2f(comm),
-        .req = jenkins_one_at_a_time_hash((char*)request, sizeof(MPI_Request)),
+        .req = PMPI_Request_c2f(*request),
         .tag = -1,
         .required_thread_lvl = -1,
         .provided_thread_lvl = -1,
@@ -479,7 +464,7 @@ int MPI_Iscatter(void const* sendbuf, int sendcount, MPI_Datatype sendtype,
         .nb_bytes_s = nb_bytes_send * sendcount,
         .nb_bytes_r = nb_bytes_recv * recvcount,
         .comm = PMPI_Comm_c2f(comm),
-        .req = jenkins_one_at_a_time_hash((char*)request, sizeof(MPI_Request)),
+        .req = PMPI_Request_c2f(*request),
         .tag = -1,
         .required_thread_lvl = -1,
         .provided_thread_lvl = -1,
@@ -548,7 +533,7 @@ int MPI_Ireduce(const void* sendbuf, void* recvbuf, int count,
         .nb_bytes_s = nb_bytes,
         .nb_bytes_r = nb_bytes * count,
         .comm = PMPI_Comm_c2f(comm),
-        .req = jenkins_one_at_a_time_hash((char*)request, sizeof(MPI_Request)),
+        .req = PMPI_Request_c2f(*request),
         .tag = -1,
         .required_thread_lvl = -1,
         .provided_thread_lvl = -1,
