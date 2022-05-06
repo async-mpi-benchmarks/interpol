@@ -1,4 +1,4 @@
-use crate::types::{MpiComm, MpiRank, MpiReq, Tsc, MPIOp};
+use crate::types::{MpiComm, MpiOp, MpiRank, MpiReq, Tsc};
 use crate::{impl_builder_error, impl_register};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ pub struct MpiIreduce {
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
-    op_type: MPIOp,
+    op_type: MpiOp,
     comm: MpiComm,
     req: MpiReq,
     tsc: Tsc,
@@ -33,7 +33,7 @@ impl MpiIreduce {
         current_rank: MpiRank,
         partner_rank: MpiRank,
         nb_bytes: u32,
-        op_type: MPIOp,
+        op_type: MpiOp,
         comm: MpiComm,
         req: MpiReq,
         tsc: Tsc,
@@ -60,21 +60,14 @@ mod tests {
     use super::*;
     const MPI_COMM_WORLD: i32 = 0;
 
-    enum MpiOpType {
-        Max,
-        Sum,
-        Prod,
-    }
-
     #[test]
     fn builds() {
-        let ireduce_new =
-            MpiIreduce::new(0, 1, 8, MpiOpType::Sum as i8, MPI_COMM_WORLD, 7, 1024, 2048);
+        let ireduce_new = MpiIreduce::new(0, 1, 8, MpiOp::Sum, MPI_COMM_WORLD, 7, 1024, 2048);
         let ireduce_builder = MpiIreduceBuilder::default()
             .current_rank(0)
             .partner_rank(1)
             .nb_bytes(8)
-            .op_type(MpiOpType::Sum as i8)
+            .op_type(MpiOp::Sum)
             .comm(MPI_COMM_WORLD)
             .req(7)
             .tsc(1024)
@@ -87,17 +80,8 @@ mod tests {
 
     #[test]
     fn serializes() {
-        let ireduce = MpiIreduce::new(
-            0,
-            0,
-            8,
-            MpiOpType::Prod as i8,
-            MPI_COMM_WORLD,
-            7,
-            1024,
-            2048,
-        );
-        let json = String::from("{\"current_rank\":0,\"partner_rank\":0,\"nb_bytes\":8,\"op_type\":2,\"comm\":0,\"req\":7,\"tsc\":1024,\"duration\":2048}");
+        let ireduce = MpiIreduce::new(0, 0, 8, MpiOp::Prod, MPI_COMM_WORLD, 7, 1024, 2048);
+        let json = String::from("{\"current_rank\":0,\"partner_rank\":0,\"nb_bytes\":8,\"op_type\":\"Prod\",\"comm\":0,\"req\":7,\"tsc\":1024,\"duration\":2048}");
         let serialized = serde_json::to_string(&ireduce).expect("failed to serialize `MpiIreduce`");
 
         assert_eq!(json, serialized);
@@ -109,7 +93,7 @@ mod tests {
             .current_rank(1)
             .partner_rank(0)
             .nb_bytes(8)
-            .op_type(MpiOpType::Max as i8)
+            .op_type(MpiOp::Max)
             .comm(MPI_COMM_WORLD)
             .req(7)
             .tsc(1024)
