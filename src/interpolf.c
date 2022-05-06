@@ -165,6 +165,7 @@ _EXTERN_C_ void mpi_init_thread__(MPI_Fint *argc, MPI_Fint ***argv, MPI_Fint *re
     MPI_Init_thread_fortran_wrapper(argc, argv, required, provided, ierr);
 }
 
+
 static void MPI_Finalize_fortran_wrapper(MPI_Fint *ierr) { 
     int _wrap_py_return_val = 0;
 
@@ -220,6 +221,7 @@ _EXTERN_C_ void mpi_finalize__(MPI_Fint *ierr) {
     MPI_Finalize_fortran_wrapper(ierr);
 }
 
+
 static void MPI_Send_fortran_wrapper(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *dest, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *ierr) { 
     int _wrap_py_return_val = 0;
 
@@ -273,4 +275,63 @@ _EXTERN_C_ void mpi_send_(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MP
 
 _EXTERN_C_ void mpi_send__(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *dest, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *ierr) { 
     MPI_Send_fortran_wrapper(buf, count, datatype, dest, tag, comm, ierr);
+}
+
+
+static void MPI_Recv_fortran_wrapper(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *source, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *status, MPI_Fint *ierr) { 
+    int _wrap_py_return_val = 0;
+
+    Tsc const tsc = rdtsc();
+
+    #if (!defined(MPICH_HAS_C2F) && defined(MPICH_NAME) && (MPICH_NAME == 1)) /* MPICH test */
+        _wrap_py_return_val = PMPI_Recv((void*)buf, *count, (MPI_Datatype)(*datatype), *source, *tag, (MPI_Comm)(*comm), (MPI_Status*)status);
+    #else /* MPI-2 safe call */
+        //MPI_Status temp_status;
+        //MPI_Status_f2c(status, &temp_status);
+        _wrap_py_return_val = PMPI_Recv((void*)buf, *count, MPI_Type_f2c(*datatype), *source, *tag, MPI_Comm_f2c(*comm), (MPI_Status*)status);
+        //MPI_Status_c2f(&temp_status, status);
+    #endif /* MPICH test */
+
+    Tsc const duration = rdtsc() - tsc;
+
+    int nb_bytes;
+    PMPI_Type_size(MPI_Type_f2c(*datatype), &nb_bytes);
+
+    MpiCall const recv = {
+        .kind = Recv,
+        .time = -1.0,
+        .tsc = tsc,
+        .duration = duration,
+        .current_rank = current_rank,
+        .partner_rank = *source,
+        .nb_bytes_s = 0,
+        .nb_bytes_r = nb_bytes * (*count),
+        .comm = PMPI_Comm_c2f((MPI_Comm)comm),
+        .req = -1,
+        .tag = *tag,
+        .required_thread_lvl = -1,
+        .provided_thread_lvl = -1,
+        .op_type = -1,
+        .finished = false,
+    };
+
+    register_mpi_call(recv);
+
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_RECV(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *source, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *status, MPI_Fint *ierr) { 
+    MPI_Recv_fortran_wrapper(buf, count, datatype, source, tag, comm, status, ierr);
+}
+
+_EXTERN_C_ void mpi_recv(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *source, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *status, MPI_Fint *ierr) { 
+    MPI_Recv_fortran_wrapper(buf, count, datatype, source, tag, comm, status, ierr);
+}
+
+_EXTERN_C_ void mpi_recv_(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *source, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *status, MPI_Fint *ierr) { 
+    MPI_Recv_fortran_wrapper(buf, count, datatype, source, tag, comm, status, ierr);
+}
+
+_EXTERN_C_ void mpi_recv__(MPI_Fint *buf, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *source, MPI_Fint *tag, MPI_Fint *comm, MPI_Fint *status, MPI_Fint *ierr) { 
+    MPI_Recv_fortran_wrapper(buf, count, datatype, source, tag, comm, status, ierr);
 }
