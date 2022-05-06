@@ -459,7 +459,7 @@ static void MPI_Barrier_fortran_wrapper(MPI_Fint *comm, MPI_Fint *ierr) {
     int _wrap_py_return_val = 0;
 
     Tsc const tsc = rdtsc();
-    
+
     #if (!defined(MPICH_HAS_C2F) && defined(MPICH_NAME) && (MPICH_NAME == 1)) /* MPICH test */
         _wrap_py_return_val = PMPI_Barrier((MPI_Comm)(*comm));
     #else /* MPI-2 safe call */
@@ -505,4 +505,60 @@ _EXTERN_C_ void mpi_barrier_(MPI_Fint *comm, MPI_Fint *ierr) {
 
 _EXTERN_C_ void mpi_barrier__(MPI_Fint *comm, MPI_Fint *ierr) { 
     MPI_Barrier_fortran_wrapper(comm, ierr);
+}
+
+
+static void MPI_Ibarrier_fortran_wrapper(MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    int _wrap_py_return_val = 0;
+
+    Tsc const tsc = rdtsc();
+
+    #if (!defined(MPICH_HAS_C2F) && defined(MPICH_NAME) && (MPICH_NAME == 1)) /* MPICH test */
+        _wrap_py_return_val = PMPI_Ibarrier((MPI_Comm)(*comm), (MPI_Request*)request);
+    #else /* MPI-2 safe call */
+        MPI_Request temp_request;
+        temp_request = MPI_Request_f2c(*request);
+        _wrap_py_return_val = PMPI_Ibarrier(MPI_Comm_f2c(*comm), &temp_request);
+        *request = MPI_Request_c2f(temp_request);
+    #endif /* MPICH test */
+
+    Tsc const duration = rdtsc() - tsc;
+
+    MpiCall const ibarrier = {
+        .kind = Ibarrier,
+        .time = -1.0,
+        .tsc = tsc,
+        .duration = duration,
+        .current_rank = current_rank,
+        .partner_rank = -1,
+        .nb_bytes_s = 0,
+        .nb_bytes_r = 0,
+        .comm = PMPI_Comm_c2f((MPI_Comm)comm),
+        .req = *request,
+        .tag = -1,
+        .required_thread_lvl = -1,
+        .provided_thread_lvl = -1,
+        .op_type = -1,
+        .finished = false,
+    };
+
+    register_mpi_call(ibarrier);
+
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_IBARRIER(MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Ibarrier_fortran_wrapper(comm, request, ierr);
+}
+
+_EXTERN_C_ void mpi_ibarrier(MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Ibarrier_fortran_wrapper(comm, request, ierr);
+}
+
+_EXTERN_C_ void mpi_ibarrier_(MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Ibarrier_fortran_wrapper(comm, request, ierr);
+}
+
+_EXTERN_C_ void mpi_ibarrier__(MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Ibarrier_fortran_wrapper(comm, request, ierr);
 }
