@@ -16,7 +16,7 @@ use crate::mpi_events::{
         mpi_wait::MpiWaitBuilder,
     },
 };
-use crate::types::{MpiComm, MpiRank, MpiReq, MpiTag, Tsc, Usecs};
+use crate::types::{MpiComm, MpiRank, MpiReq, MpiTag, Tsc, Usecs, MpiCallType, MPIOp};
 use crate::InterpolError;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
@@ -87,26 +87,6 @@ lazy_static! {
 }
 
 #[derive(Debug, PartialEq)]
-#[repr(i8)]
-pub enum MpiCallType {
-    Init,
-    Initthread,
-    Finalize,
-    Send,
-    Recv,
-    Isend,
-    Irecv,
-    Test,
-    Wait,
-    Barrier,
-    Ibarrier,
-    Ibcast,
-    Igather,
-    Ireduce,
-    Iscatter,
-}
-
-#[derive(Debug, PartialEq)]
 #[repr(C)]
 pub struct MpiCall {
     time: Usecs,
@@ -122,7 +102,7 @@ pub struct MpiCall {
     required_thread_lvl: i32,
     provided_thread_lvl: i32,
     finished: bool,
-    op_type: i8,
+    op_type: MPIOp,
     kind: MpiCallType,
 }
 
@@ -603,7 +583,7 @@ fn register_ireduce(
     current_rank: MpiRank,
     partner_rank: MpiRank,
     nb_bytes: u32,
-    op_type: i8,
+    op_type: MPIOp,
     comm: MpiComm,
     req: MpiReq,
     tsc: Tsc,
