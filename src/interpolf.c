@@ -739,3 +739,63 @@ _EXTERN_C_ void mpi_ibcast_(MPI_Fint *buffer, MPI_Fint *count, MPI_Fint *datatyp
 _EXTERN_C_ void mpi_ibcast__(MPI_Fint *buffer, MPI_Fint *count, MPI_Fint *datatype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
     MPI_Ibcast_fortran_wrapper(buffer, count, datatype, root, comm, request, ierr);
 }
+
+
+static void MPI_Igather_fortran_wrapper(MPI_Fint *sendbuf, MPI_Fint *sendcount, MPI_Fint *sendtype, MPI_Fint *recvbuf, MPI_Fint *recvcount, MPI_Fint *recvtype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    int _wrap_py_return_val = 0;
+
+    Tsc const tsc = rdtsc();
+
+    #if (!defined(MPICH_HAS_C2F) && defined(MPICH_NAME) && (MPICH_NAME == 1)) /* MPICH test */
+        _wrap_py_return_val = PMPI_Igather((const void*)sendbuf, *sendcount, (MPI_Datatype)(*sendtype), (void*)recvbuf, *recvcount, (MPI_Datatype)(*recvtype), *root, (MPI_Comm)(*comm), (MPI_Request*)request);
+    #else /* MPI-2 safe call */
+        MPI_Request temp_request;
+        temp_request = MPI_Request_f2c(*request);
+        _wrap_py_return_val = PMPI_Igather((const void*)sendbuf, *sendcount, MPI_Type_f2c(*sendtype), (void*)recvbuf, *recvcount, MPI_Type_f2c(*recvtype), *root, MPI_Comm_f2c(*comm), &temp_request);
+        *request = MPI_Request_c2f(temp_request);
+    #endif /* MPICH test */
+
+    Tsc const duration = rdtsc() - tsc;
+
+    int nb_bytes_send, nb_bytes_recv;
+    PMPI_Type_size(MPI_Type_f2c(*sendtype), &nb_bytes_send);
+    PMPI_Type_size(MPI_Type_f2c(*recvtype), &nb_bytes_recv);
+
+    MpiCall const igather = {
+        .kind = Igather,
+        .time = -1.0,
+        .tsc = tsc,
+        .duration = duration,
+        .current_rank = current_rank,
+        .partner_rank = *root,
+        .nb_bytes_s = nb_bytes_send * (*sendcount),
+        .nb_bytes_r = nb_bytes_recv * (*recvcount),
+        .comm = PMPI_Comm_c2f((MPI_Comm)comm),
+        .req = *request,
+        .tag = -1,
+        .required_thread_lvl = -1,
+        .provided_thread_lvl = -1,
+        .op_type = -1,
+        .finished = false,
+    };
+
+    register_mpi_call(igather);
+
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_IGATHER(MPI_Fint *sendbuf, MPI_Fint *sendcount, MPI_Fint *sendtype, MPI_Fint *recvbuf, MPI_Fint *recvcount, MPI_Fint *recvtype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Igather_fortran_wrapper(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm, request, ierr);
+}
+
+_EXTERN_C_ void mpi_igather(MPI_Fint *sendbuf, MPI_Fint *sendcount, MPI_Fint *sendtype, MPI_Fint *recvbuf, MPI_Fint *recvcount, MPI_Fint *recvtype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Igather_fortran_wrapper(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm, request, ierr);
+}
+
+_EXTERN_C_ void mpi_igather_(MPI_Fint *sendbuf, MPI_Fint *sendcount, MPI_Fint *sendtype, MPI_Fint *recvbuf, MPI_Fint *recvcount, MPI_Fint *recvtype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Igather_fortran_wrapper(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm, request, ierr);
+}
+
+_EXTERN_C_ void mpi_igather__(MPI_Fint *sendbuf, MPI_Fint *sendcount, MPI_Fint *sendtype, MPI_Fint *recvbuf, MPI_Fint *recvcount, MPI_Fint *recvtype, MPI_Fint *root, MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
+    MPI_Igather_fortran_wrapper(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm, request, ierr);
+}
