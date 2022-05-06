@@ -374,7 +374,7 @@ int MPI_Ibarrier(MPI_Comm comm, MPI_Request* request)
         .finished = false,
     };
 
-    register_mpi_call(barrier);
+    register_mpi_call(ibarrier);
     return ret;
 }
 
