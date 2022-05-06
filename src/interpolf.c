@@ -562,3 +562,62 @@ _EXTERN_C_ void mpi_ibarrier_(MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr)
 _EXTERN_C_ void mpi_ibarrier__(MPI_Fint *comm, MPI_Fint *request, MPI_Fint *ierr) { 
     MPI_Ibarrier_fortran_wrapper(comm, request, ierr);
 }
+
+
+static void MPI_Test_fortran_wrapper(MPI_Fint *request, MPI_Fint *flag, MPI_Fint *status, MPI_Fint *ierr) { 
+    int _wrap_py_return_val = 0;
+
+    Tsc const tsc = rdtsc();
+
+    #if (!defined(MPICH_HAS_C2F) && defined(MPICH_NAME) && (MPICH_NAME == 1)) /* MPICH test */
+        _wrap_py_return_val = PMPI_Test((MPI_Request*)request, (int*)flag, (MPI_Status*)status);
+    #else /* MPI-2 safe call */
+        MPI_Request temp_request;
+        MPI_Status temp_status;
+        temp_request = MPI_Request_f2c(*request);
+        MPI_Status_f2c(status, &temp_status);
+        _wrap_py_return_val = PMPI_Test(&temp_request, (int*)flag, &temp_status);
+        *request = MPI_Request_c2f(temp_request);
+        MPI_Status_c2f(&temp_status, status);
+    #endif /* MPICH test */
+
+    Tsc const duration = rdtsc() - tsc;
+
+    MpiCall const test = {
+        .kind = Test,
+        .time = -1.0,
+        .tsc = tsc,
+        .duration = duration,
+        .current_rank = current_rank,
+        .partner_rank = -1,
+        .nb_bytes_s = 0,
+        .nb_bytes_r = 0,
+        .comm = -1,
+        .req = *request,
+        .tag = -1,
+        .required_thread_lvl = -1,
+        .provided_thread_lvl = -1,
+        .op_type = -1,
+        .finished = (int*)flag != 0 ? true : false,
+    };
+
+    register_mpi_call(test);
+
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_TEST(MPI_Fint *request, MPI_Fint *flag, MPI_Fint *status, MPI_Fint *ierr) { 
+    MPI_Test_fortran_wrapper(request, flag, status, ierr);
+}
+
+_EXTERN_C_ void mpi_test(MPI_Fint *request, MPI_Fint *flag, MPI_Fint *status, MPI_Fint *ierr) { 
+    MPI_Test_fortran_wrapper(request, flag, status, ierr);
+}
+
+_EXTERN_C_ void mpi_test_(MPI_Fint *request, MPI_Fint *flag, MPI_Fint *status, MPI_Fint *ierr) { 
+    MPI_Test_fortran_wrapper(request, flag, status, ierr);
+}
+
+_EXTERN_C_ void mpi_test__(MPI_Fint *request, MPI_Fint *flag, MPI_Fint *status, MPI_Fint *ierr) { 
+    MPI_Test_fortran_wrapper(request, flag, status, ierr);
+}
