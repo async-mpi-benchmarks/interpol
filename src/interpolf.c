@@ -52,13 +52,13 @@ int32_t jenkins_one_at_a_time_hash(char const* key, size_t len)
     return hash;
 }
 
-/* =============== Fortran Wrappers for MPI_Init =============== */
+
 static void MPI_Init_fortran_wrapper(MPI_Fint *ierr) { 
     int argc = 0;
     char ** argv = NULL;
     int _wrap_py_return_val = 0;
 
-    _wrap_py_return_val = MPI_Init(&argc, &argv);
+    _wrap_py_return_val = PMPI_Init(&argc, &argv);
     PMPI_Barrier(MPI_COMM_WORLD);
 
     // Measure the current time and TSC.
@@ -111,7 +111,59 @@ _EXTERN_C_ void mpi_init__(MPI_Fint *ierr) {
     fortran_init = 4;
     MPI_Init_fortran_wrapper(ierr);
 }
-/* ================= End Wrappers for MPI_Init ================= */
+
+
+static void MPI_Init_thread_fortran_wrapper(MPI_Fint *argc, MPI_Fint ***argv, MPI_Fint *required, MPI_Fint *provided, MPI_Fint *ierr) { 
+    int _wrap_py_return_val = 0;
+
+    _wrap_py_return_val = PMPI_Init_thread((int*)argc, (char***)argv, *required, (int*)provided);
+    PMPI_Barrier(MPI_COMM_WORLD);
+
+    // Measure the current time and TSC.
+    Tsc const tsc = fenced_rdtscp();
+    struct timeval timeofday;
+    gettimeofday(&timeofday, NULL);
+
+    // Set the rank of the current MPI process/thread
+    PMPI_Comm_rank(MPI_COMM_WORLD, &current_rank);
+
+    MpiCall const initthread = {
+        .kind = Initthread,
+        .time = timeofday.tv_sec + timeofday.tv_usec / 1e6,
+        .tsc = tsc,
+        .duration = 0,
+        .current_rank = current_rank,
+        .partner_rank = -1,
+        .nb_bytes_s = 0,
+        .nb_bytes_r = 0,
+        .comm = -1,
+        .req = -1,
+        .tag = -1,
+        .required_thread_lvl = *required,
+        .provided_thread_lvl = *provided,
+        .op_type = -1,
+        .finished = false,
+    };
+
+    register_mpi_call(initthread);
+    *ierr = _wrap_py_return_val;
+}
+
+_EXTERN_C_ void MPI_INIT_THREAD(MPI_Fint *argc, MPI_Fint ***argv, MPI_Fint *required, MPI_Fint *provided, MPI_Fint *ierr) { 
+    MPI_Init_thread_fortran_wrapper(argc, argv, required, provided, ierr);
+}
+
+_EXTERN_C_ void mpi_init_thread(MPI_Fint *argc, MPI_Fint ***argv, MPI_Fint *required, MPI_Fint *provided, MPI_Fint *ierr) { 
+    MPI_Init_thread_fortran_wrapper(argc, argv, required, provided, ierr);
+}
+
+_EXTERN_C_ void mpi_init_thread_(MPI_Fint *argc, MPI_Fint ***argv, MPI_Fint *required, MPI_Fint *provided, MPI_Fint *ierr) { 
+    MPI_Init_thread_fortran_wrapper(argc, argv, required, provided, ierr);
+}
+
+_EXTERN_C_ void mpi_init_thread__(MPI_Fint *argc, MPI_Fint ***argv, MPI_Fint *required, MPI_Fint *provided, MPI_Fint *ierr) { 
+    MPI_Init_thread_fortran_wrapper(argc, argv, required, provided, ierr);
+}
 
 static void MPI_Finalize_fortran_wrapper(MPI_Fint *ierr) { 
     int _wrap_py_return_val = 0;
@@ -147,7 +199,7 @@ static void MPI_Finalize_fortran_wrapper(MPI_Fint *ierr) {
         sort_all_traces();
     }
 
-    _wrap_py_return_val = MPI_Finalize();
+    _wrap_py_return_val = PMPI_Finalize();
 
     *ierr = _wrap_py_return_val;
 }
