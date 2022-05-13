@@ -1,6 +1,6 @@
 # Macros
 CC=mpicc
-CFLAGS=-Wall -Wextra -g3 -I include -L interpol_rs/target/release -fPIC -shared
+CFLAGS=-Wall -Wextra -g3 -I include -L interpol-rs/target/release -fPIC -shared
 OFLAGS=-march=native -mtune=native -Os
 
 INCLUDE=include
