@@ -67,4 +67,6 @@ LD_PRELOAD=libinterpol-f.so <MPICMD> -n <NB_PROC> <BINARY>
 
 Otherwise, you need to provide the absolute path to the `libinterpol.so` or `libinterpol-f.so` file.
 
-You can also check the documentation for the Rust back-end with the `make doc` command and run its unit tests with `make test`.
+You can also check the documentation for the Rust back-end with the `make doc` command and run the unit tests with `make test`.
+
+Link to the PMPI wrapper generator: [LLNL/wrap](https://github.com/LLNL/wrap)
