@@ -1,6 +1,6 @@
 # Macros
 CC=mpicc
-CFLAGS=-Wall -Wextra -g3
+CFLAGS=-Wall -Wextra -g3 -I include -L interpol_rs/target/release -fPIC -shared
 OFLAGS=-march=native -mtune=native -Os
 
 INCLUDE=include
@@ -10,29 +10,22 @@ SRC=src
 
 PWD=$(shell pwd)
 
-build: libinterpol.so
-	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(PWD)/interpol-rs/target/release/:$(PWD)
+.PHONY: build install uninstall test doc reset clean
 
-buildf: libinterpolf.so
+build: libinterpol.so libinterpol-f.so
 	@export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(PWD)/interpol-rs/target/release/:$(PWD)
 
 install: build
-	@cp libinterpol.so interpol-rs/target/release/libinterpol_rs.so /usr/lib/
+	@cp libinterpol.so libinterpol-f.so interpol-rs/target/release/libinterpol_rs.so /usr/lib/
 
 uninstall:
-	@rm /usr/lib/libinterpol.so /usr/lib/libinterpol_rs.so 
+	@rm /usr/lib/libinterpol.so /usr/lib/libinterpol-f.so /usr/lib/libinterpol_rs.so 
 
-installf: buildf
-	@cp libinterpolf.so interpol-rs/target/release/libinterpol_rs.so /usr/lib/
+libinterpol.so: $(RS_LIB)/libinterpol_rs.so $(SRC)/interpol-c.c
+	$(CC) $(CFLAGS) $(OFLAGS) $(SRC)/interpol-c.c -o $@ -linterpol_rs
 
-uninstallf:
-	@rm /usr/lib/libinterpolf.so /usr/lib/libinterpol_rs.so 
-
-libinterpol.so: $(RS_LIB)/libinterpol_rs.so $(INCLUDE)/tsc.h $(SRC)/interpol.c $(INCLUDE)/interpol.h
-	$(CC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpol.c -o $@ -linterpol_rs
-
-libinterpolf.so: $(RS_LIB)/libinterpol_rs.so $(INCLUDE)/tsc.h $(SRC)/interpolf.c $(INCLUDE)/interpol.h
-	$(CC) $(CFLAGS) $(OFLAGS) -I$(INCLUDE) -L$(RS_LIB) -fPIC -shared $(SRC)/interpolf.c -o $@ -linterpol_rs
+libinterpol-f.so: $(RS_LIB)/libinterpol_rs.so $(SRC)/interpol-f.c
+	$(CC) $(CFLAGS) $(OFLAGS) $(SRC)/interpol-f.c -o $@ -linterpol_rs
 
 $(RS_LIB)/libinterpol_rs.so: $(RS_SRC)/*.rs
 	@cd interpol-rs/ && cargo build --release
@@ -44,11 +37,8 @@ doc: $(RS_SRC)/*.rs
 	@cd interpol-rs/ && cargo doc --document-private-items --open
 
 reset:
-	@rm -Rf $(TARGET) libinterpol.so
+	@rm -Rf libinterpol.so libinterpol-f.so
 
 clean:
 	@cd interpol-rs/ && cargo clean
-	@rm -Rf $(TARGET) libinterpol.so
-	@rm -Rf $(TARGET) libinterpolf.so
-
-.PHONY: build install uninstall test doc reset clean
+	@rm -Rf libinterpol.so libinterpol-f.so
