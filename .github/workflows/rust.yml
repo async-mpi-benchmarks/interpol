@@ -17,30 +17,30 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Update local toolchain
-        run: |
-          rustup update
-          rustup component add clippy
-          rustup install nightly          
+      run: |
+        rustup update
+        rustup component add clippy
+        rustup install nightly          
 
-      - name: Toolchain info
-        run: |
-          cargo --version --verbose
-          rustc --version
-          cargo clippy --version          
+    - name: Toolchain info
+      run: |
+        cargo --version --verbose
+        rustc --version
+        cargo clippy --version          
 
-      - name: Lint
-        run: |
-          cd interpol-rs
-          cargo fmt -- --check
-          cargo clippy -- -D warnings          
+    - name: Lint
+      run: |
+        cd interpol-rs
+        cargo fmt -- --check
+        cargo clippy -- -D warnings          
 
-      - name: Test
-        run: |
-          cd interpol-rs
-          cargo check
-          cargo test --all          
+    - name: Test
+      run: |
+        cd interpol-rs
+        cargo check
+        cargo test --all          
 
-      - name: Build
-        run: |
-          cd interpol-rs
-          cargo build --release
+    - name: Build
+      run: |
+        cd interpol-rs
+        cargo build --release
