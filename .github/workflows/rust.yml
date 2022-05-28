@@ -34,7 +34,7 @@ jobs:
       run: |
         cd interpol-rs
         cargo fmt -- --check
-        cargo clippy -- -D warnings
+        cargo clippy -- -A clippy::too_many_arguments
 
     - name: Test
       run: |
