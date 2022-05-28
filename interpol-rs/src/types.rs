@@ -10,7 +10,7 @@ pub type MpiTag = i32;
 pub type Tsc = u64;
 pub type Usecs = f64;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 #[repr(i8)]
 pub enum MpiCallType {
     Init,
@@ -30,7 +30,7 @@ pub enum MpiCallType {
     Iscatter,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i8)]
 pub enum MpiOp {
     Opnull,

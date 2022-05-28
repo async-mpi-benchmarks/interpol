@@ -52,7 +52,7 @@ impl From<std::collections::TryReserveError> for InterpolError {
 #[macro_export]
 macro_rules! impl_builder_error {
     ($t:ty) => {
-        use crate::{InterpolError, InterpolErrorKind};
+        use $crate::{InterpolError, InterpolErrorKind};
 
         impl From<$t> for InterpolError {
             fn from(error: $t) -> Self {

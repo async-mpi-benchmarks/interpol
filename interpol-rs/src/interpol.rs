@@ -45,8 +45,8 @@ pub trait Register: Send + Sync {
 #[macro_export]
 macro_rules! impl_register {
     ($t:ty) => {
-        use crate::interpol::Register;
         use std::collections::TryReserveError;
+        use $crate::interpol::Register;
 
         #[typetag::serde]
         impl Register for $t {
@@ -57,7 +57,7 @@ macro_rules! impl_register {
                 Ok(())
             }
 
-            fn tsc(&self) -> crate::types::Tsc {
+            fn tsc(&self) -> $crate::types::Tsc {
                 self.tsc
             }
         }
@@ -117,18 +117,14 @@ fn serialize(
     println!("[interpol]: serializing traces for rank {current_rank}");
     let ser_traces = serde_json::to_string_pretty(events)
         .expect("failed to serialize vector contents to string");
-    let filename = format!(
-        "{}/rank{}_traces.json",
-        INTERPOL_DIR,
-        current_rank.to_string()
-    );
+    let filename = format!("{}/rank{}_traces.json", INTERPOL_DIR, current_rank);
 
     fs::create_dir_all(INTERPOL_DIR)?;
     let mut file = File::options()
         .write(true)
         .truncate(true)
         .create(true)
-        .open(filename.clone())?;
+        .open(filename)?;
     write!(file, "{}", ser_traces)?;
     Ok(())
 }

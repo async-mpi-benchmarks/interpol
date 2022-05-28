@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 /// - the tag of the communication;
 /// - the current value of the Time Stamp counter before the call to `MPI_Ibcast`.
 /// - the duration of the call.
-#[derive(Builder, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MpiIbcast {
     current_rank: MpiRank,
     partner_rank: MpiRank,

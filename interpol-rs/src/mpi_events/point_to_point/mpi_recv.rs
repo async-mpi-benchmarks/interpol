@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 /// - the duration of the call.
 /// The TSC is measured using the `rdtscp` and `lfence` instructions (see Intel documentation for
 /// further information).
-#[derive(Builder, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MpiRecv {
     current_rank: MpiRank,
     partner_rank: MpiRank,
