@@ -1,6 +1,6 @@
 [package]
 name = "interpol-rs"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 
 [build-dependencies]
@@ -16,3 +16,8 @@ typetag = "0.1.8"
 
 [lib]
 crate-type = ["cdylib"] # shared library (.so)
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
