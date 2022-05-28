@@ -20,25 +20,26 @@ jobs:
       run: |
         rustup update
         rustup component add clippy
-        rustup install nightly          
+        rustup install nightly
+        rustup override set nightly
 
     - name: Toolchain info
       run: |
         cargo --version --verbose
         rustc --version
-        cargo clippy --version          
+        cargo clippy --version
 
     - name: Lint
       run: |
         cd interpol-rs
         cargo fmt -- --check
-        cargo clippy -- -D warnings          
+        cargo clippy -- -D warnings
 
     - name: Test
       run: |
         cd interpol-rs
         cargo check
-        cargo test --all          
+        cargo test --all
 
     - name: Build
       run: |
