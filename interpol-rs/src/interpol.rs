@@ -20,12 +20,9 @@ use crate::types::{MpiCallType, MpiComm, MpiOp, MpiRank, MpiReq, MpiTag, Tsc, Us
 use crate::InterpolError;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
+use std::fs::{self, File};
 use std::io::Write;
 use std::sync::Mutex;
-use std::{
-    fs::{self, File},
-    path::PathBuf,
-};
 
 static INTERPOL_DIR: &str = "interpol-tmp";
 
@@ -307,7 +304,7 @@ fn register_finalize(current_rank: MpiRank, tsc: Tsc, time: Usecs) -> Result<(),
     finalize_event.register(&mut guard)?;
 
     // Serialize all events of the current rank
-    serialize(&mut *guard, current_rank)?;
+    serialize(&mut guard, current_rank)?;
     Ok(())
 }
 
@@ -682,7 +679,7 @@ fn deserialize_all_traces() -> Result<Vec<Box<dyn Register>>, InterpolError> {
 
     for entry in fs::read_dir(INTERPOL_DIR)? {
         let dir_entry = entry?;
-        if dir_entry.file_name() == PathBuf::from("interpol_traces.json") {
+        if dir_entry.file_name() == std::path::Path::new("interpol_traces.json") {
             fs::remove_file(dir_entry.path())?;
             continue;
         }
