@@ -1,11 +1,11 @@
 # Interpol
 
-**Interpol** is a thread-safe interposition library designed to trace and profile the runtime behavior of non-blocking MPI routines.
+**Interpol** is a thread-safe interposition library designed to trace and profile the runtime behavior of non-blocking MPI routines. It intercepts calls to MPI with a C/Fortran interpostion library (these two being the de-facto languages in which MPI applications are written in), which are forwarded to a Rust backend that does all of the profiling and traces generation work.
 This tools aims at evaluating the efficiency of MPI applications that use the non-blocking calls defined in the standard, specifically measuring the communication-computation overlap and pin pointing the critical code sections.
 
 The library generates JSON traces of the intercepted MPI events, which can thereafter be exploited using the project's provided GUI interface, [Interpol Trace Analyzer](https://github.com/async-mpi-benchmarks/Interface), developed alongside the **Interpol** library.
 
-This project was done as part of the **Parallel Programming Project** for the [M1 High Performance Computing and Simulation at University of Paris-Saclay](http://www.chps.uvsq.fr/), under the supervision of Mr [Jean-Baptiste Besnard](https://github.com/besnardjb). Although the project was already turned in, we will keep maintening this repository and add new functionnalities to it in the coming months. Feel free to file issues or open PRs in case of bugs or to suggest additions!
+This project was done as part of the **Parallel Programming Project** for the [M1 High Performance Computing and Simulation at University of Paris-Saclay](http://www.chps.uvsq.fr/), under the supervision of Mr [Jean-Baptiste Besnard](https://github.com/besnardjb). Although the project has already been turned in, we will keep maintening this repository and add new functionnalities to it in the coming months. Feel free to file issues or open PRs in case of bugs or to suggest additions!
 
 
 ## Features
