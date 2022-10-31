@@ -18,7 +18,6 @@ use crate::mpi_events::{
 };
 use crate::types::{MpiCallType, MpiComm, MpiOp, MpiRank, MpiReq, MpiTag, Tsc, Usecs};
 use crate::InterpolError;
-use lazy_static::lazy_static;
 use rayon::prelude::*;
 use std::fs::{self, File};
 use std::io::Write;
@@ -61,30 +60,28 @@ macro_rules! impl_register {
     };
 }
 
-lazy_static! {
-    /// A vector that keeps track of interposed MPI functions called by a process.
-    ///
-    /// The `lazy_static` macro creates static objects that are only initialized when needed at
-    /// runtime. In this case, this implementation is similar to a singleton. It removes the need
-    /// to pass a constant pointer on the `Vec` back to the C part of the interposition library,
-    /// therefore avoiding the use of `unsafe` code sections.
-    ///
-    /// As the MPI standard allows for processes to run code in parallel (e.g. through libraries
-    /// like OpenMP or pthread), the `Vec` *must* be wrapped in a `Mutex` to prevent concurrent
-    /// attempts at pushing onto the traces vector. Each time an event is registered, the caller
-    /// must first take the lock on the `Mutex` before pushing an `Event`. This ensures that
-    /// `interpol-rs` is thread-safe even in `MPI_THREAD_MULTIPLE` context.
-    ///
-    /// We have chosen to implement mutual exclusion in the Rust part of the interposition library
-    /// to reduce the critical section of code to the minimum, i.e. when a MPI call has been
-    /// registered and *needs* to be saved. This choice theoretically allows for the best
-    /// safety/performance ratio.
-    ///
-    /// It should be noted that in a MPI context, it is "rare" that the same process manages a
-    /// large number of threads. Therefore, the contention on the `Mutex` should not impact the
-    /// performance of the application and the blocking of threads will be kept to a minimum.
-    static ref EVENTS: Trace = Trace(Mutex::new(Vec::new()));
-}
+/// A vector that keeps track of interposed MPI functions called by a process.
+///
+/// The `lazy_static` macro creates static objects that are only initialized when needed at
+/// runtime. In this case, this implementation is similar to a singleton. It removes the need
+/// to pass a constant pointer on the `Vec` back to the C part of the interposition library,
+/// therefore avoiding the use of `unsafe` code sections.
+///
+/// As the MPI standard allows for processes to run code in parallel (e.g. through libraries
+/// like OpenMP or pthread), the `Vec` *must* be wrapped in a `Mutex` to prevent concurrent
+/// attempts at pushing onto the traces vector. Each time an event is registered, the caller
+/// must first take the lock on the `Mutex` before pushing an `Event`. This ensures that
+/// `interpol-rs` is thread-safe even in `MPI_THREAD_MULTIPLE` context.
+///
+/// We have chosen to implement mutual exclusion in the Rust part of the interposition library
+/// to reduce the critical section of code to the minimum, i.e. when a MPI call has been
+/// registered and *needs* to be saved. This choice theoretically allows for the best
+/// safety/performance ratio.
+///
+/// It should be noted that in a MPI context, it is "rare" that the same process manages a
+/// large number of threads. Therefore, the contention on the `Mutex` should not impact the
+/// performance of the application and the blocking of threads will be kept to a minimum.
+static EVENTS: Trace = Trace(Mutex::new(Vec::new()));
 
 #[derive(Debug, PartialEq)]
 #[repr(C)]
@@ -112,8 +109,7 @@ fn serialize(
     current_rank: MpiRank,
 ) -> Result<(), InterpolError> {
     println!("[interpol]: serializing traces for rank {current_rank}");
-    let ser_traces = serde_json::to_string_pretty(events)
-        .expect("failed to serialize vector contents to string");
+    let traces = serde_json::to_string(events).expect("failed to serialize traces to string");
     let filename = format!("{}/rank{}_traces.json", INTERPOL_DIR, current_rank);
 
     fs::create_dir_all(INTERPOL_DIR)?;
@@ -122,7 +118,7 @@ fn serialize(
         .truncate(true)
         .create(true)
         .open(filename)?;
-    write!(file, "{}", ser_traces)?;
+    write!(file, "{}", traces)?;
     Ok(())
 }
 
